@@ -1,0 +1,22 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+/* App-wide foundation kept here after the old shared stylesheet was removed. */
+:root {
+  color: #102033;
+  background: #f5f8fa;
+  font-family: Inter, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: #f5f8fa;
+  color: #102033;
+}
+
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }

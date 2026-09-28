@@ -1,0 +1,238 @@
+.messages-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  height: 560px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 26px rgba(21, 68, 58, 0.06);
+  animation: messages-enter 220ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+.conversation-list {
+  padding: 7px;
+  border-right: 1px solid var(--line);
+  background: #fbfdfd;
+}
+.conversation-list button {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  text-align: left;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+.conversation-list button.selected {
+  border-color: #bee5d9;
+  background: #e9f8f3;
+}
+.conversation-list b,
+.conversation-list small {
+  display: block;
+}
+.conversation-list b {
+  font-size: 10px;
+}
+.conversation-list small {
+  margin-top: 4px;
+  color: #87949f;
+  font-size: 9px;
+}
+.chat {
+  display: flex;
+  flex-direction: column;
+}
+.chat-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+.chat-head b,
+.chat-head small {
+  display: block;
+  font-size: 10px;
+}
+.chat-head small {
+  margin-top: 3px;
+  color: #0a9b70;
+}
+.chat-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  background: #f8fbfa;
+}
+.bubble {
+  max-width: 65%;
+  padding: 10px 13px;
+  border-radius: 10px;
+  font-size: 10px;
+  line-height: 1.5;
+  animation: message-bubble-enter 180ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+.received {
+  align-self: flex-start;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+.sent {
+  align-self: flex-end;
+  background: #0aa875;
+  color: #fff;
+}
+.chat-input {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--line);
+  background: #fff;
+}
+.chat-input input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 10px;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+.chat-input input:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(10, 168, 117, 0.14);
+  outline: 0;
+}
+.chat-input .primary {
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .conversation-list button:hover {
+    border-color: #d4e9e2;
+    background: #f1faf7;
+    transform: translateX(2px);
+  }
+  .chat-input .primary:hover {
+    background: #078f67;
+    box-shadow: 0 7px 14px rgba(10, 168, 117, 0.22);
+    transform: translateY(-1px);
+  }
+}
+
+.conversation-list button:focus-visible,
+.chat-input .primary:focus-visible {
+  outline: 3px solid rgba(10, 168, 117, 0.28);
+  outline-offset: 2px;
+}
+
+@keyframes messages-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes message-bubble-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .messages-layout,
+  .bubble {
+    animation: message-fade 160ms ease both;
+  }
+  .conversation-list button,
+  .chat-input input,
+  .chat-input .primary {
+    transition: none;
+  }
+}
+
+@keyframes message-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (max-width: 760px) {
+  .messages-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .conversation-list {
+    max-height: 230px;
+    overflow: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .chat {
+    height: 420px;
+  }
+}
+
+/* Messages-owned base styles: this screen no longer imports stylee.css. */
+:root {
+  --green: #0aa875;
+  --muted: #6e7c8b;
+  --line: #e1e8ee;
+}
+.page-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.page-title h1 {
+  margin: 0;
+  font-size: 19px;
+}
+.page-title p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 17px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--green);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(10, 168, 117, 0.18);
+}
+.primary:hover {
+  background: #078f67;
+}

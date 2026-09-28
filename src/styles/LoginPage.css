@@ -1,0 +1,297 @@
+.login-page {
+  --login-text: #102033;
+  --login-muted: #6e7c8b;
+  --login-line: #e1e8ee;
+  --login-green: #0aa875;
+  --login-green-dark: #078f67;
+  --login-error: #d94b58;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  background: linear-gradient(135deg, #071a2e 0%, #0d263f 52%, #e7f8f3 150%);
+  color: var(--login-text);
+  font-family: Inter, Arial, sans-serif;
+}
+.login-page *,
+.login-page *::before,
+.login-page *::after {
+  box-sizing: border-box;
+}
+
+/* ---------- Card ---------- */
+.login-card {
+  width: min(100%, 410px);
+  padding: 34px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  animation: login-arrive 220ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+.login-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 26px;
+  font-size: 20px;
+  font-weight: 800;
+}
+.login-brand-mark {
+  color: var(--login-green);
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* ---------- Heading ---------- */
+.login-header {
+  margin-bottom: 24px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--login-line);
+}
+.login-page h1 {
+  margin: 0 0 6px;
+  font-size: 28px;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+.login-description {
+  margin: 0;
+  color: var(--login-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ---------- Fields (each reserves 22px for its error, so the form never jumps) ---------- */
+.login-field {
+  position: relative;
+  padding-bottom: 22px;
+}
+.login-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+}
+.login-input-wrap {
+  position: relative;
+  margin-top: 7px;
+}
+.login-input-icon {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  color: #8a9aa8;
+  transform: translateY(-50%);
+  pointer-events: none;
+  transition: color 0.18s ease;
+}
+.login-input {
+  display: block;
+  width: 100%;
+  padding: 11px 12px 11px 38px;
+  border: 1px solid var(--login-line);
+  border-radius: 8px;
+  color: var(--login-text);
+  font: inherit;
+  font-size: 13px;
+  outline: 0;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+.login-input.has-toggle {
+  padding-right: 44px;
+}
+.login-input::placeholder {
+  color: #a3b0bb;
+}
+.login-input:hover {
+  border-color: #a9beb8;
+  background: #fcfefd;
+}
+.login-input:focus {
+  border-color: var(--login-green);
+  box-shadow: 0 0 0 3px rgba(10, 168, 117, 0.15);
+}
+.login-input-wrap:focus-within .login-input-icon {
+  color: var(--login-green);
+}
+
+/* Show / hide password */
+.login-toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #8a9aa8;
+  transform: translateY(-50%);
+  cursor: pointer;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease;
+}
+.login-toggle:hover {
+  background: #f0f4f5;
+  color: var(--login-text);
+}
+
+/* ---------- Validation errors ---------- */
+.login-field-error {
+  position: absolute;
+  bottom: 4px;
+  left: 0;
+  color: var(--login-error);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.login-input.invalid,
+.login-input.invalid:hover,
+.login-input.invalid:focus {
+  border-color: var(--login-error);
+}
+.login-input.invalid:focus {
+  box-shadow: 0 0 0 3px rgba(217, 75, 88, 0.15);
+}
+.login-input-wrap:has(.invalid) .login-input-icon {
+  color: var(--login-error);
+}
+.login-error {
+  min-height: 18px;
+  margin: 0 0 8px;
+  color: var(--login-error);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ---------- Remember me ---------- */
+.login-remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--login-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.login-remember input {
+  accent-color: var(--login-green);
+}
+
+/* ---------- Buttons ---------- */
+.login-submit {
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 11px 17px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--login-green);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+.login-submit:hover {
+  background: var(--login-green-dark);
+  box-shadow: 0 9px 18px rgba(10, 168, 117, 0.26);
+}
+.login-switch {
+  margin: 22px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--login-line);
+  color: var(--login-muted);
+  font-size: 12px;
+  text-align: center;
+}
+.login-switch-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--login-green);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.login-switch-link:hover {
+  color: var(--login-green-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- Keyboard focus (shared) ---------- */
+.login-submit:focus-visible,
+.login-switch-link:focus-visible,
+.login-toggle:focus-visible {
+  outline: 3px solid rgba(10, 168, 117, 0.32);
+  outline-offset: 2px;
+}
+
+/* ---------- Animations ---------- */
+@keyframes login-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes login-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------- Media queries ---------- */
+@media (hover: hover) and (pointer: fine) {
+  .login-submit:hover {
+    transform: translateY(-1px);
+  }
+  .login-submit:active {
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-card {
+    animation: login-fade 160ms ease both;
+  }
+  .login-input,
+  .login-input-icon,
+  .login-toggle,
+  .login-submit {
+    transition: none;
+  }
+}
+@media (max-width: 480px) {
+  .login-page {
+    padding: 18px;
+  }
+  .login-card {
+    padding: 26px 22px;
+  }
+  .login-page h1 {
+    font-size: 25px;
+  }
+}

@@ -1,0 +1,303 @@
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: 220px;
+  background: var(--navy);
+  color: #dbe7ef;
+}
+.side-brand {
+  height: 74px;
+  padding: 0 22px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+}
+.brand-mark {
+  color: #10b889;
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1;
+}
+.sidebar nav {
+  padding: 12px;
+}
+
+.moderation-side nav {
+  padding-top: 9px;
+}
+.sidebar nav button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 42px;
+  gap: 12px;
+  margin-bottom: 5px;
+  padding: 0 13px;
+  border-radius: 8px;
+  color: #b8c8d5;
+  text-align: left;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+.sidebar nav button:hover {
+  background: var(--mint);
+  color: var(--green);
+}
+.sidebar nav button.active {
+  background: var(--green);
+  color: #fff;
+}
+.sidebar nav em {
+  margin-left: auto;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: #e74f5c;
+  color: #fff;
+  font-size: 11px;
+  font-style: normal;
+}
+.side-bottom {
+  margin-top: auto;
+  padding: 15px;
+}
+.mini-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 5px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.mini-profile strong,
+.mini-profile small {
+  display: block;
+}
+.mini-profile strong {
+  color: #fff;
+  font-size: 12px;
+}
+.mini-profile small {
+  margin-top: 3px;
+  color: #90a3b4;
+  font-size: 10px;
+}
+.avatar {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  background: #d7eee7;
+  color: #087c5d;
+  font-size: 11px;
+  font-weight: 700;
+}
+.side-bottom > button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+  padding: 9px 5px;
+  color: #aebfcd;
+  font-size: 12px;
+  text-align: left;
+}
+.mobile-menu,
+.close-mobile {
+  display: none;
+}
+
+/* Buyer navigation keeps the existing routes while making the current section
+   and account actions easier to scan. */
+.buyer-side .side-brand {
+  height: 82px;
+  padding-inline: 22px;
+}
+
+.buyer-side nav {
+  padding: 8px 12px;
+}
+
+.buyer-side nav button {
+  position: relative;
+  height: 43px;
+  margin-bottom: 6px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.buyer-side nav button.active {
+  border-color: rgba(126, 231, 204, 0.18);
+  background: var(--green);
+  box-shadow: 0 8px 16px rgba(8, 154, 114, 0.22);
+}
+
+.buyer-side nav button:focus-visible,
+.buyer-side .side-bottom > button:focus-visible {
+  outline: 3px solid rgba(126, 231, 204, 0.42);
+  outline-offset: 2px;
+}
+
+.buyer-side nav em {
+  display: grid;
+  min-width: 18px;
+  min-height: 18px;
+  place-items: center;
+  padding: 2px 5px;
+  box-shadow: 0 3px 8px rgba(145, 24, 44, 0.24);
+  animation: buyer-badge-enter 180ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.buyer-side .side-bottom {
+  padding: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.buyer-side .mini-profile {
+  border-top: 0;
+  padding-top: 3px;
+}
+
+.buyer-side .mini-profile .avatar {
+  box-shadow: 0 0 0 3px rgba(126, 231, 204, 0.12);
+}
+
+.buyer-side .side-bottom > button {
+  border-radius: 7px;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .buyer-side nav button:hover {
+    border-color: rgba(126, 231, 204, 0.16);
+    background: rgba(126, 231, 204, 0.1);
+    color: #eafbf6;
+    transform: translateX(3px);
+  }
+
+  .buyer-side nav button.active:hover {
+    background: var(--green);
+    color: #fff;
+  }
+
+  .buyer-side .side-bottom > button:hover {
+    background: rgba(126, 231, 204, 0.1);
+    color: #fff;
+    transform: translateX(2px);
+  }
+}
+
+@keyframes buyer-sidebar-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes buyer-nav-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes buyer-badge-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (min-width: 761px) {
+  .buyer-side {
+    animation: buyer-sidebar-enter 220ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  }
+  .buyer-side nav button {
+    animation: buyer-nav-enter 180ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  }
+  .buyer-side nav button:nth-child(2) {
+    animation-delay: 35ms;
+  }
+  .buyer-side nav button:nth-child(3) {
+    animation-delay: 70ms;
+  }
+  .buyer-side nav button:nth-child(4) {
+    animation-delay: 105ms;
+  }
+  .buyer-side nav button:nth-child(5) {
+    animation-delay: 140ms;
+  }
+  .buyer-side nav button:nth-child(6) {
+    animation-delay: 175ms;
+  }
+  .buyer-side nav button:nth-child(7) {
+    animation-delay: 210ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .buyer-side,
+  .buyer-side nav button,
+  .buyer-side nav em {
+    animation: none;
+  }
+  .buyer-side nav button,
+  .buyer-side .side-bottom > button {
+    transition: none;
+  }
+}
+@media (max-width: 1000px) {
+  .sidebar {
+    width: 190px;
+  }
+}
+@media (max-width: 760px) {
+  .sidebar {
+    width: 240px;
+    transform: translateX(-100%);
+    transition: 0.2s;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  .mobile-menu {
+    display: block;
+    color: #fff;
+  }
+  .close-mobile {
+    position: absolute;
+    top: 18px;
+    right: 8px;
+    display: block;
+    color: #fff;
+  }
+}

@@ -1,0 +1,45 @@
+.app-shell {
+  min-height: 100vh;
+}
+.app-main {
+  min-height: 100vh;
+  margin-left: 220px;
+}
+.app-modebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 30px 0;
+}
+.app-mode-label {
+  display: block;
+  color: #0aa875;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+.app-modebar strong {
+  font-size: 13px;
+}
+.app-content {
+  max-width: 1500px;
+  min-height: 0;
+  margin: auto;
+  padding: 18px 30px 40px;
+}
+@media (max-width: 1000px) {
+  .app-main {
+    margin-left: 190px;
+  }
+}
+@media (max-width: 760px) {
+  .app-main {
+    margin-left: 0;
+  }
+  .app-modebar {
+    padding: 13px 15px 0;
+  }
+  .app-content {
+    padding: 15px;
+  }
+}

@@ -1,0 +1,25 @@
+.status {
+  font-size: 12px;
+  font-weight: 700;
+}
+.status.delivered {
+  color: #0b9069;
+}
+.status.shipped {
+  color: #3b82c4;
+}
+.status.processing {
+  color: #b47a09;
+}
+.status.pending {
+  color: #cf5260;
+}
+.status.cancelled {
+  color: #697887;
+}
+.status.active {
+  color: #0b9069;
+}
+.status.restricted {
+  color: #cf5260;
+}

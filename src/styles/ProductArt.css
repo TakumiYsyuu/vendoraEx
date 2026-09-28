@@ -1,0 +1,14 @@
+.product-art {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 8px;
+}
+.product-art span {
+  font-size: 82px;
+  filter: drop-shadow(0 8px 7px rgba(0, 0, 0, 0.12));
+}
+.product-art.large span {
+  font-size: 150px;
+}
