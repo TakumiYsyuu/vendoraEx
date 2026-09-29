@@ -1,6 +1,32 @@
 import bcrypt from "bcryptjs";
 import db from "../config/db.js";
 
+export const getUserStats = async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT role, COUNT(*) AS count FROM users WHERE role != 'admin' GROUP BY role`,
+    );
+
+    const counts = { shopper: 0, seller: 0, staff: 0 };
+    rows.forEach((row) => {
+      counts[row.role] = row.count;
+    });
+
+    const total = counts.shopper + counts.seller + counts.staff;
+
+    res.json({
+      success: true,
+      total,
+      shoppers: counts.shopper,
+      sellers: counts.seller,
+      staff: counts.staff,
+    });
+  } catch (error) {
+    console.error("Get user stats error:", error);
+    res.status(500).json({ success: false, message: "Server error." });
+  }
+};
+
 export const getUsers = async (req, res) => {
   try {
     const [rows] = await db.query(

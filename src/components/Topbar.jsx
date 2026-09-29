@@ -181,12 +181,7 @@ export default function Topbar({
             )}
           </div>
         )}
-        {!seller && !moderation && (
-          <button className="icon-btn" onClick={onCart} aria-label="Open cart">
-            <ShoppingCart size={19} />
-            {cartCount > 0 && <b>{cartCount}</b>}
-          </button>
-        )}
+
         <div style={{ position: "relative" }}>
           <button
             className="avatar"

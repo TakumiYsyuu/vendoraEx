@@ -21,7 +21,11 @@ const validate = {
   },
 };
 
-export default function LoginPage({ onLogin, onGoToRegister }) {
+export default function LoginPage({
+  onLogin,
+  onGoToRegister,
+  onGoToForgotPassword,
+}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
@@ -97,7 +101,16 @@ export default function LoginPage({ onLogin, onGoToRegister }) {
             placeholder="Enter your password"
             autoComplete="current-password"
           />
-          <LoginRemember checked={remember} onChange={setRemember} />
+          <div className="login-options">
+            <LoginRemember checked={remember} onChange={setRemember} />
+            <button
+              type="button"
+              className="login-switch-link"
+              onClick={onGoToForgotPassword}
+            >
+              Forgot password?
+            </button>
+          </div>
           <p className="login-error" role={error ? "alert" : undefined}>
             {error}
           </p>

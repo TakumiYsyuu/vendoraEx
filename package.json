@@ -19,6 +19,7 @@
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.47.0",
     "mysql2": "^3.24.4",
+    "nodemailer": "^10.0.12",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tailwindcss": "^4.3.3"

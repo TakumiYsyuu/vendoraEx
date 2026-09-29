@@ -4,13 +4,13 @@ import { products } from "./data/products";
 
 import LoginPage from "./auth/LoginPage";
 import RegisterPage from "./auth/RegisterPage";
+import Forget from "./auth/Forget";
 import Topbar from "./components/Topbar";
 import ModerationSidebar from "./components/ModerationSidebar";
 
 import {
   BuyerSidebar,
   BuyerRoutes,
-  CategoryNav,
   ReviewSheet,
   ReportSheet,
 } from "./buyer/BuyerDashboard";
@@ -164,13 +164,11 @@ export default function App() {
       setPage("seller-dashboard");
       return;
     }
-    // Reload seller listings before returning to the buyer catalogue.
     setProductVersion((version) => version + 1);
     setMode("buyer");
     setPage("home");
   };
 
-  // Explicit auth routing keeps each screen ready for a separate backend endpoint.
   const renderAuthScreen = () => {
     if (authView === "register")
       return (
@@ -180,10 +178,14 @@ export default function App() {
         />
       );
 
+    if (authView === "forgot")
+      return <Forget onBackToLogin={() => setAuthView("login")} />;
+
     return (
       <LoginPage
         onLogin={login}
         onGoToRegister={() => setAuthView("register")}
+        onGoToForgotPassword={() => setAuthView("forgot")}
       />
     );
   };
@@ -295,23 +297,7 @@ export default function App() {
             onClose={() => setReportProduct(null)}
           />
         )}
-        {!isModerator &&
-          mode === "buyer" &&
-          (page === "home" || page === "categories") && (
-            <CategoryNav
-              context={page === "home" ? "home" : "categories"}
-              page={page}
-              query={query}
-              onCategory={
-                page === "categories" ?
-                  (category) => {
-                    setQuery(category);
-                    setPage("categories");
-                  }
-                : selectCategory
-              }
-            />
-          )}
+
         {!isModerator && (
           <div className="app-modebar">
             <div>

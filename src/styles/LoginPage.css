@@ -174,18 +174,122 @@
   line-height: 1.5;
 }
 
-/* ---------- Remember me ---------- */
+/* ---------- Remember me + Forgot password row ---------- */
+.login-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
 .login-remember {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 0;
   color: var(--login-muted);
   font-size: 12px;
   cursor: pointer;
 }
 .login-remember input {
   accent-color: var(--login-green);
+}
+.login-options .login-switch-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--login-green);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.login-options .login-switch-link:hover {
+  color: var(--login-green-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.login-remember input {
+  accent-color: var(--login-green);
+}
+
+/* ---------- Password reset flow ---------- */
+.login-reset {
+  animation: login-fade 180ms ease both;
+}
+.login-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--login-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.login-back:hover {
+  color: var(--login-text);
+}
+.login-reset h1 {
+  margin-bottom: 8px;
+}
+.login-reset .login-description {
+  margin-bottom: 22px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--login-line);
+}
+.login-helper {
+  margin: 10px 0 0;
+  color: var(--login-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.login-pin {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+.login-pin input {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid var(--login-line);
+  border-radius: 8px;
+  color: var(--login-text);
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  outline: 0;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.login-pin input:focus {
+  border-color: var(--login-green);
+  box-shadow: 0 0 0 3px rgba(10, 168, 117, 0.15);
+}
+
+/* Success screen */
+.login-success {
+  padding-top: 4px;
+  text-align: center;
+}
+.login-success svg {
+  color: var(--login-green);
+  margin-bottom: 12px;
+}
+.login-success h1 {
+  margin-bottom: 8px;
+}
+.login-success p {
+  margin: 0 0 24px;
+  color: var(--login-muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 /* ---------- Buttons ---------- */

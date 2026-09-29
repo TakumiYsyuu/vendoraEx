@@ -71,6 +71,56 @@ export async function registerAccount({
   }
 }
 
+export async function requestPasswordReset(email) {
+  try {
+    const response = await fetch(`${VITE_URL}/password-reset/request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const data = await response.json();
+    if (!response.ok) return { error: data.message || "Failed to send code." };
+    return { success: true };
+  } catch (err) {
+    console.error("Request reset failed:", err);
+    return { error: "Could not reach the server. Please try again." };
+  }
+}
+
+export async function verifyResetCode(email, code) {
+  try {
+    const response = await fetch(`${VITE_URL}/password-reset/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, code }),
+    });
+    const data = await response.json();
+    if (!response.ok)
+      return { error: data.message || "Invalid or expired code." };
+    return { success: true };
+  } catch (err) {
+    console.error("Verify code failed:", err);
+    return { error: "Could not reach the server. Please try again." };
+  }
+}
+
+export async function confirmPasswordReset(email, code, newPassword) {
+  try {
+    const response = await fetch(`${VITE_URL}/password-reset/reset`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, code, newPassword }),
+    });
+    const data = await response.json();
+    if (!response.ok)
+      return { error: data.message || "Failed to reset password." };
+    return { success: true };
+  } catch (err) {
+    console.error("Reset password failed:", err);
+    return { error: "Could not reach the server. Please try again." };
+  }
+}
+
 // --- Session persistence, matching App.jsx's exact call signatures ---
 
 export function loadStoredUser() {

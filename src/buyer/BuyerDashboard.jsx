@@ -49,7 +49,6 @@ export function BuyerSidebar({
     [MessageCircle, "Messages", "messages"],
     [ShoppingCart, "Cart", "cart"],
   ];
-  // App owns this state so the top-bar menu and sidebar always stay in sync.
   const navigate = (nextPage) => {
     setPage(nextPage);
     setMobileOpen(false);
@@ -95,77 +94,6 @@ export function BuyerSidebar({
         </button>
       </div>
     </aside>
-  );
-}
-
-// ---------- CategoryNav ----------
-export function CategoryNav({ context, query, onCategory }) {
-  const categories = [
-    "All Categories",
-    "Electronics",
-    "Fashion",
-    "Home & Living",
-    "Beauty & Health",
-    "Sports & Outdoors",
-    "Toys & Games",
-    "Groceries",
-  ];
-  const [hovered, setHovered] = useState("");
-  return (
-    <nav
-      className={`category-nav ${context}-category-nav`}
-      aria-label={`${context} product categories`}
-      style={{
-        position: "sticky",
-        top: 62,
-        zIndex: 15,
-        display: "flex",
-        gap: 8,
-        alignItems: "center",
-        overflowX: "auto",
-        padding: "0 30px",
-        minHeight: 48,
-        background: context === "home" ? "#fff" : "#f8fbfc",
-        borderBottom: "1px solid var(--line)",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {categories.map((category) => {
-        const active =
-          category === "All Categories" ? !query : query === category;
-        const highlighted = active || hovered === category;
-        return (
-          <button
-            key={category}
-            className={active ? "active" : ""}
-            onMouseEnter={() => setHovered(category)}
-            onMouseLeave={() => setHovered("")}
-            onClick={() =>
-              onCategory(category === "All Categories" ? "" : category)
-            }
-            style={{
-              padding: "7px 12px",
-              borderRadius: 6,
-              color:
-                highlighted ?
-                  active ? "#fff"
-                  : "var(--green)"
-                : "var(--muted)",
-              background:
-                active ? "var(--green)"
-                : hovered === category ? "var(--mint)"
-                : "transparent",
-              fontSize: 12,
-              fontWeight: active ? 700 : 500,
-              flexShrink: 0,
-              transition: "all .16s ease",
-            }}
-          >
-            {category}
-          </button>
-        );
-      })}
-    </nav>
   );
 }
 
@@ -414,7 +342,7 @@ function ProductDetail({
   const [qty, setQty] = useState(1);
   const [activeTab, setActiveTab] = useState("Description");
   const [reviews] = useState(() => loadProductReviews(p));
-  // Apply the quantity selected on this page instead of always adding one item.
+
   const addSelectedQuantity = () => add(p, qty);
   const averageRating =
     reviews.length ?
