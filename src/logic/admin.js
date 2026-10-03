@@ -1,7 +1,7 @@
 import { getSellers } from "./moderation";
 import { getStorefrontProducts } from "./products";
 
-const VITE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const VITE_URL = import.meta.env.VITE_URLL || "http://localhost:5000/api";
 
 function authHeaders() {
   const token = localStorage.getItem("vendora_token");
