@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 5000;
 app.set("trust proxy", 1);
 
 const allowedOrigins = [
-  process.env.FRONTEND_URL,
+  process.env.FRONTEND_URL?.replace(/\/+$/, ""),
   "http://localhost:5173",
 ].filter(Boolean);
 
