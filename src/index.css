@@ -8,7 +8,9 @@
   font-family: Inter, Arial, sans-serif;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
   min-width: 320px;
@@ -18,5 +20,12 @@ body {
   color: #102033;
 }
 
-button, input, select, textarea { font: inherit; }
-button { cursor: pointer; }
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}

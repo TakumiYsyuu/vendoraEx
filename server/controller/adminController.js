@@ -1,6 +1,8 @@
 import bcrypt from "bcryptjs";
 import db from "../config/db.js";
 
+const EMAIL_REGEX = /^\S+@\S+\.\S+$/;
+
 export const getUserStats = async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -50,6 +52,21 @@ export const createUser = async (req, res) => {
         message: "Please fill in all required fields.",
       });
     }
+    if (typeof email !== "string" || !EMAIL_REGEX.test(email)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid email." });
+    }
+    if (
+      typeof password !== "string" ||
+      password.length < 8 ||
+      password.length > 72
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be 8 to 72 characters.",
+      });
+    }
     if (!["shopper", "seller"].includes(role)) {
       return res.status(400).json({ success: false, message: "Invalid role." });
     }
@@ -85,11 +102,15 @@ export const updateUser = async (req, res) => {
     if (!fullname || !["shopper", "seller"].includes(role)) {
       return res.status(400).json({ success: false, message: "Invalid data." });
     }
-    await db.query("UPDATE users SET fullname = ?, role = ? WHERE id = ?", [
-      fullname,
-      role,
-      id,
-    ]);
+    const [result] = await db.query(
+      "UPDATE users SET fullname = ?, role = ? WHERE id = ? AND role IN ('shopper', 'seller')",
+      [fullname, role, id],
+    );
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found." });
+    }
     res.json({ success: true });
   } catch (error) {
     console.error("Update user error:", error);
@@ -101,10 +122,18 @@ export const setUserRestriction = async (req, res) => {
   try {
     const { id } = req.params;
     const { restricted } = req.body;
-    await db.query("UPDATE users SET is_active = ? WHERE id = ?", [
-      restricted ? 0 : 1,
-      id,
-    ]);
+    if (typeof restricted !== "boolean") {
+      return res.status(400).json({ success: false, message: "Invalid data." });
+    }
+    const [result] = await db.query(
+      "UPDATE users SET is_active = ? WHERE id = ? AND role IN ('shopper', 'seller')",
+      [restricted ? 0 : 1, id],
+    );
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found." });
+    }
     res.json({ success: true });
   } catch (error) {
     console.error("Set restriction error:", error);

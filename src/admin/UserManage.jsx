@@ -38,7 +38,6 @@ export default function UserManage({ users, onSaveUser, onToggleRestriction }) {
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Reset search + filters whenever this page is left (unmounted)
   useEffect(() => {
     return () => {
       setQuery("");
