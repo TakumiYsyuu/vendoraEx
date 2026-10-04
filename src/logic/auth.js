@@ -2,6 +2,8 @@ const VITE_URL = import.meta.env.VITE_URL || "http://localhost:5000/api";
 const STORAGE_KEY = "vendora_user";
 const TOKEN_KEY = "vendora_token";
 
+import { getDeviceId } from "./deviceId";
+
 function normalizeUser(rawUser) {
   if (!rawUser) return rawUser;
   return {
@@ -16,7 +18,7 @@ export async function loginAccount({ email, password }) {
     const response = await fetch(`${VITE_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, deviceId: getDeviceId() }),
     });
 
     const data = await response.json();
@@ -25,10 +27,36 @@ export async function loginAccount({ email, password }) {
       return { error: data.message || "Login failed. Please try again." };
     }
 
+    if (data.otpRequired) {
+      return { otpRequired: true, email: data.email };
+    }
+
     localStorage.setItem("vendora_token", data.token);
     return { account: normalizeUser(data.user) };
   } catch (err) {
     console.error("Login request failed:", err);
+    return { error: "Could not reach the server. Please try again." };
+  }
+}
+
+export async function verifyLoginOtp(email, code) {
+  try {
+    const response = await fetch(`${VITE_URL}/auth/login/verify-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, code, deviceId: getDeviceId() }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { error: data.message || "Invalid or expired code." };
+    }
+
+    localStorage.setItem("vendora_token", data.token);
+    return { account: normalizeUser(data.user) };
+  } catch (err) {
+    console.error("Verify login OTP failed:", err);
     return { error: "Could not reach the server. Please try again." };
   }
 }
@@ -61,10 +89,7 @@ export async function registerAccount({
       };
     }
 
-    if (data.token) {
-      localStorage.setItem("vendora_token", data.token);
-    }
-    return { account: normalizeUser(data.user) };
+    return { success: true };
   } catch (err) {
     console.error("Register request failed:", err);
     return { error: "Could not reach the server. Please try again." };

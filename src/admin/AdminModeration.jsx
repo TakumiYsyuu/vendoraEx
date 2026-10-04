@@ -28,17 +28,20 @@ import {
 } from "../logic/moderation";
 
 import {
+  getAdminStaff,
+  saveAdminStaff,
+  setStaffRestriction,
+} from "../logic/staff";
+
+import {
   getAdminOrders,
   getAdminProducts,
   getAdminStats,
   getAdminSettings,
   getAdminUsers,
-  getAdminStaff,
   saveAdminSettings,
   saveAdminUser,
-  saveAdminStaff,
   setUserRestriction,
-  setStaffRestriction,
 } from "../logic/admin";
 import { initials } from "../utils/helpers";
 
@@ -157,7 +160,6 @@ function Dashboard({
       <section className="admin-stat-grid" aria-label="Marketplace totals">
         <StatCard
           icon={Users}
-          size="lg"
           label="Total Users"
           value={stats.totalUsers}
           detail="Active accounts"
@@ -438,7 +440,10 @@ export default function AdminModeration({ page, go, user }) {
     },
   ]);
 
-  const stats = getAdminStats(reports);
+  const stats = {
+    ...getAdminStats(reports),
+    totalUsers: users.length,
+  };
 
   const loadAdminData = async () => {
     try {

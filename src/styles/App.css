@@ -11,13 +11,6 @@
   justify-content: space-between;
   padding: 16px 30px 0;
 }
-.app-mode-label {
-  display: block;
-  color: #0aa875;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 1px;
-}
 .app-modebar strong {
   font-size: 13px;
 }

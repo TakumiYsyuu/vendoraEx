@@ -59,11 +59,6 @@ export default function Topbar({
     seller ?
       "Search for products, orders, or customers..."
     : "Search for products, brands and more...";
-  const accountType =
-    moderation ? `${user.role} account`
-    : seller ? "Seller account"
-    : "Buyer & Seller";
-  const switchModeLabel = seller ? "Go to Buyer" : "Go to Shop";
 
   // Opening the panel marks the demo notifications as seen in one state update.
   const toggleNotifications = () => {
@@ -86,15 +81,7 @@ export default function Topbar({
         <span className="brand-mark">V</span>
         <span>Vendora</span>
       </div>
-      {!moderation && (
-        <div className="searchbox">
-          <Search size={17} />
-          <input
-            placeholder={searchPlaceholder}
-            onChange={(e) => onSearch?.(e.target.value)}
-          />
-        </div>
-      )}
+
       <div className="top-actions">
         {!moderation && (
           <div style={{ position: "relative" }}>
@@ -237,18 +224,7 @@ export default function Topbar({
                   </small>
                 </div>
               </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "12px 0",
-                  fontSize: 12,
-                  color: "var(--muted)",
-                }}
-              >
-                <User size={15} /> {accountType}
-              </div>
+
               {!moderation && (
                 <>
                   <button
@@ -265,21 +241,6 @@ export default function Topbar({
                     }}
                   >
                     <Settings size={15} /> Account Settings
-                  </button>
-                  <button
-                    className="profile-option"
-                    onClick={onSwitchMode}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      width: "100%",
-                      padding: "9px 6px",
-                      fontSize: 12,
-                      textAlign: "left",
-                    }}
-                  >
-                    <ShoppingCart size={15} /> {switchModeLabel}
                   </button>
                 </>
               )}

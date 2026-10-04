@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
-import { loginAccount } from "../logic/auth";
+import { loginAccount, verifyLoginOtp } from "../logic/auth";
 import "../styles/LoginPage.css";
 
 const PASSWORD_MAX = 16;
@@ -32,6 +32,10 @@ export default function LoginPage({
   const [touched, setTouched] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [otpMode, setOtpMode] = useState(false);
+  const [otpEmail, setOtpEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpError, setOtpError] = useState("");
 
   const errors = {
     email: validate.email(email),
@@ -59,8 +63,81 @@ export default function LoginPage({
 
     const result = await loginAccount({ email: email.trim(), password });
     if (result.error) return setError(result.error);
+    if (result.otpRequired) {
+      setOtpEmail(result.email);
+      setOtpMode(true);
+      return;
+    }
     onLogin(result.account, remember);
   };
+
+  const submitOtp = async (event) => {
+    event.preventDefault();
+    const result = await verifyLoginOtp(otpEmail, otpCode.trim());
+    if (result.error) return setOtpError(result.error);
+    onLogin(result.account, remember);
+  };
+
+  if (otpMode) {
+    return (
+      <main className="login-page">
+        <section className="login-card">
+          <div className="login-brand">
+            <span className="login-brand-mark">V</span>
+            <span>Vendora</span>
+          </div>
+          <header className="login-header">
+            <h1>Check your email</h1>
+            <p className="login-description">
+              We sent a 6-digit code to {otpEmail}. Enter it below to finish
+              signing in from this device.
+            </p>
+          </header>
+          <form className="login-form" onSubmit={submitOtp} noValidate>
+            <div className="login-field">
+              <label className="login-label" htmlFor="otp-code">
+                Verification code
+              </label>
+              <div className="login-input-wrap">
+                <input
+                  id="otp-code"
+                  className="login-input"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(event) =>
+                    setOtpCode(event.target.value.replace(/\D/g, ""))
+                  }
+                  placeholder="123456"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <p className="login-error" role={otpError ? "alert" : undefined}>
+              {otpError}
+            </p>
+            <button className="login-submit" type="submit">
+              Verify
+            </button>
+          </form>
+          <p className="login-switch">
+            <button
+              className="login-switch-link"
+              type="button"
+              onClick={() => {
+                setOtpMode(false);
+                setOtpCode("");
+                setOtpError("");
+              }}
+            >
+              Back to login
+            </button>
+          </p>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="login-page">

@@ -118,7 +118,7 @@ export default function RegisterPage({ onRegister, onGoToLogin }) {
       accountType,
     });
     if (result.error) return setError(result.error);
-    onRegister(result.account, true);
+    onGoToLogin();
   };
 
   return (

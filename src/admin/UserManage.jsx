@@ -120,7 +120,7 @@ export default function UserManage({ users, onSaveUser, onToggleRestriction }) {
           className="primary admin-addStaff"
           onClick={() => openEditor("create")}
         >
-          <Plus size={16} /> Add Staff
+          <Plus size={16} /> Add User
         </button>
       </div>
 
@@ -378,7 +378,7 @@ export default function UserManage({ users, onSaveUser, onToggleRestriction }) {
               <div>
                 <h2 id="admin-user-dialog-title">
                   {editor.mode === "create" ?
-                    "Add user"
+                    "Add User"
                   : editor.mode === "edit" ?
                     "Edit user"
                   : "Account details"}
@@ -479,7 +479,7 @@ export default function UserManage({ users, onSaveUser, onToggleRestriction }) {
                     Cancel
                   </button>
                   <button className="primary" type="submit">
-                    {editor.mode === "create" ? "Add user" : "Save changes"}
+                    {editor.mode === "create" ? "Add User" : "Save changes"}
                   </button>
                 </div>
               </form>

@@ -298,16 +298,6 @@ export default function App() {
           />
         )}
 
-        {!isModerator && (
-          <div className="app-modebar">
-            <div>
-              <span className="app-mode-label">DEMO PROTOTYPE</span>
-              <strong>
-                {mode === "buyer" ? "Customer Storefront" : "Seller Center"}
-              </strong>
-            </div>
-          </div>
-        )}
         <div className="app-content">{renderContent()}</div>
       </main>
     </div>
