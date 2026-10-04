@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@getbrevo/brevo": "^6.0.3",
     "@tailwindcss/vite": "^4.3.3",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
