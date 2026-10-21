@@ -12,7 +12,6 @@ function isSellerBanned(email) {
   return localStorage.getItem(`vendora-banned-${email}`) === "true";
 }
 
-// Collects marketplace listings while excluding sellers restricted by moderation.
 export function getStorefrontProducts() {
   return Object.keys(localStorage)
     .filter((key) => key.startsWith("vendora-products-"))
@@ -94,3 +93,79 @@ export function updateSellerProduct({ sellerEmail, productId, changes }) {
   localStorage.setItem(key, JSON.stringify(nextProducts));
   return { product: updatedProduct };
 }
+
+// ================= Seller products (database) =================
+const PRODUCT_API_URL = import.meta.env.VITE_URL || "http://localhost:5000/api";
+const PRODUCT_SERVER_URL = PRODUCT_API_URL.replace(/\/api\/?$/, ""); // for image links
+const PRODUCT_API = `${PRODUCT_API_URL}/products`;
+
+const productAuthHeader = () => ({
+  Authorization: `Bearer ${localStorage.getItem("vendora_token")}`,
+});
+
+async function productRequest(url, options = {}) {
+  let res;
+  try {
+    res = await fetch(url, {
+      ...options,
+      headers: { ...productAuthHeader(), ...options.headers },
+    });
+  } catch {
+    throw new Error("Could not reach the server. Please try again.");
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      (data.errors && Object.values(data.errors)[0]) ||
+        data.message ||
+        "Something went wrong.",
+    );
+  }
+  return data;
+}
+
+const toProduct = (p) => ({
+  ...p,
+  price: Number(p.price),
+  stock: Number(p.stock),
+  discount: Number(p.discount_percent ?? p.discount ?? 0),
+  image:
+    p.images?.[0] ? PRODUCT_SERVER_URL + p.images[0]
+    : p.thumbnail ? PRODUCT_SERVER_URL + p.thumbnail
+    : "",
+  draft: p.status === "draft",
+});
+
+export const getMyProducts = async () => {
+  const data = await productRequest(`${PRODUCT_API}/mine`);
+  return data.products.map(toProduct);
+};
+
+export const createProduct = (form, images = []) => {
+  const fd = new FormData();
+  Object.entries(form).forEach(([k, v]) => fd.append(k, v));
+  images.forEach((img) => fd.append("images", img));
+  return productRequest(PRODUCT_API, { method: "POST", body: fd });
+};
+
+export const updateProduct = (p) =>
+  productRequest(`${PRODUCT_API}/${p.id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: p.name,
+      category: p.category,
+      description: p.description || "",
+      price: p.price,
+      stock: p.stock,
+      discount: p.discount || 0,
+    }),
+  });
+
+export const deleteProduct = (id) =>
+  productRequest(`${PRODUCT_API}/${id}`, { method: "DELETE" });
+
+export const fetchStorefrontProducts = async () => {
+  const data = await productRequest(PRODUCT_API);
+  return data.products.map(toProduct);
+};

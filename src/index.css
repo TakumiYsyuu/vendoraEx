@@ -9,23 +9,9 @@
 }
 
 * {
-  box-sizing: border-box;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* old Edge/IE */
 }
-
-body {
-  min-width: 320px;
-  min-height: 100vh;
-  margin: 0;
-  background: #f5f8fa;
-  color: #102033;
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-button {
-  cursor: pointer;
+*::-webkit-scrollbar {
+  display: none; /* Chrome, Edge, Safari */
 }

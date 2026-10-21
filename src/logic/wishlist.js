@@ -1,20 +1,32 @@
-export function loadWishlist(user) {
-  if (!user?.email) return [];
+const WISHLIST_API =
+  (import.meta.env.VITE_URL || "http://localhost:5000/api") + "/wishlist";
+
+const authHeader = () => ({
+  Authorization: `Bearer ${localStorage.getItem("vendora_token")}`,
+});
+
+async function wishlistRequest(url, options = {}) {
+  let res;
   try {
-    const wishlist = JSON.parse(
-      localStorage.getItem(`vendora-wishlist-${user.email}`) || "[]",
-    );
-    if (Array.isArray(wishlist)) return wishlist;
+    res = await fetch(url, {
+      ...options,
+      headers: { ...authHeader(), ...options.headers },
+    });
   } catch {
-    // A backend implementation would return a recoverable wishlist-loading error.
+    throw new Error("Could not reach the server.");
   }
-  return [];
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || "Something went wrong.");
+  return data;
 }
 
-// This is the future persistence point for wishlist API updates.
-export function saveWishlist(email, wishlistIds) {
-  localStorage.setItem(
-    `vendora-wishlist-${email}`,
-    JSON.stringify(wishlistIds),
-  );
-}
+export const fetchWishlist = async () => {
+  const data = await wishlistRequest(WISHLIST_API);
+  return data.ids.map(Number);
+};
+
+export const addToWishlist = (id) =>
+  wishlistRequest(`${WISHLIST_API}/${id}`, { method: "POST" });
+
+export const removeFromWishlist = (id) =>
+  wishlistRequest(`${WISHLIST_API}/${id}`, { method: "DELETE" });

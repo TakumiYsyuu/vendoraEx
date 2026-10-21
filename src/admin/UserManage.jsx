@@ -1,18 +1,62 @@
-import { useState, useMemo, useEffect } from "react";
-import { Plus, Search, X, Eye, Users } from "lucide-react";
-import Status from "../components/Status";
+import { useState, useMemo, useRef } from "react";
+import {
+  CalendarDays,
+  Eye,
+  Pencil,
+  Plus,
+  Search,
+  ShieldCheck,
+  ShieldOff,
+  Users,
+  X,
+} from "lucide-react";
+import { initials } from "../utils/helpers";
+import "../styles/staffManage.css";
+import "../styles/userManage.css";
 
-const ROLE_FILTERS = [
-  { value: "all", label: "All roles" },
-  { value: "buyer", label: "Buyer" },
-  { value: "seller", label: "Seller" },
+const ROLE_TABS = [
+  ["all", "All"],
+  ["buyer", "Buyers"],
+  ["seller", "Sellers"],
 ];
 
-const STATUS_FILTERS = [
-  { value: "all", label: "All status" },
-  { value: "active", label: "Active" },
-  { value: "restricted", label: "Restricted" },
+const STATUS_OPTIONS = [
+  ["all", "All status"],
+  ["active", "Active"],
+  ["restricted", "Restricted"],
 ];
+
+const EMPTY_DRAFT = {
+  name: "",
+  email: "",
+  phone: "",
+  accountType: "Buyer",
+  password: "",
+};
+
+// Converts a Date to the "YYYY-MM-DDTHH:mm" format datetime-local inputs use
+function toInput(date) {
+  const d = new Date(date);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+
+function addDays(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return toInput(d);
+}
+
+function formatDateTime(value) {
+  if (!value) return "No end date";
+  return new Date(value).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
 function EmptyState({ icon: Icon, title, description }) {
   return (
@@ -24,27 +68,82 @@ function EmptyState({ icon: Icon, title, description }) {
   );
 }
 
+const StatusPill = ({ restricted }) => (
+  <span className={`st-status ${restricted ? "st-restricted" : "st-active"}`}>
+    {restricted ? "Restricted" : "Active"}
+  </span>
+);
+
+const RolePill = ({ type }) => (
+  <span className={`um-role um-${String(type || "").toLowerCase()}`}>
+    {type}
+  </span>
+);
+
+function DateTimeField({ id, name, value, min, onChange }) {
+  const inputRef = useRef(null);
+
+  const openPicker = () => {
+    try {
+      inputRef.current?.showPicker();
+    } catch {
+      inputRef.current?.focus();
+    }
+  };
+
+  return (
+    <div className="um-datetime">
+      <input
+        ref={inputRef}
+        id={id}
+        name={name}
+        type="datetime-local"
+        value={value}
+        min={min}
+        onChange={onChange}
+      />
+      <button
+        type="button"
+        aria-label="Open calendar"
+        title="Pick date and time"
+        onClick={openPicker}
+      >
+        <CalendarDays size={16} />
+      </button>
+    </div>
+  );
+}
+
 export default function UserManage({ users, onSaveUser, onToggleRestriction }) {
   const [editor, setEditor] = useState(null);
-  const [draft, setDraft] = useState({
-    name: "",
-    email: "",
-    accountType: "Buyer",
-    password: "",
-  });
+  const [draft, setDraft] = useState(EMPTY_DRAFT);
   const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const [restrictTarget, setRestrictTarget] = useState(null);
+  const [restrictDraft, setRestrictDraft] = useState({
+    reason: "",
+    startDate: "",
+    endDate: "",
+  });
+  const [restrictError, setRestrictError] = useState("");
+
+  const [unrestrictTarget, setUnrestrictTarget] = useState(null);
+  const [unrestrictError, setUnrestrictError] = useState("");
 
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  useEffect(() => {
-    return () => {
-      setQuery("");
-      setRoleFilter("all");
-      setStatusFilter("all");
+  const roleCounts = useMemo(() => {
+    const count = (role) =>
+      users.filter((u) => u.type?.toLowerCase() === role).length;
+    return {
+      all: users.length,
+      buyer: count("buyer"),
+      seller: count("seller"),
     };
-  }, []);
+  }, [users]);
 
   const filteredUsers = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -79,33 +178,86 @@ export default function UserManage({ users, onSaveUser, onToggleRestriction }) {
         {
           name: user.name,
           email: user.email,
+          phone: user.phone || "",
           accountType: user.type,
           password: "",
         }
-      : { name: "", email: "", accountType: "Buyer", password: "" },
+      : EMPTY_DRAFT,
     );
   };
+
   const updateDraft = (event) => {
     const { name, value } = event.target;
     setDraft((current) => ({ ...current, [name]: value }));
   };
-  const submitUser = (event) => {
+
+  const submitUser = async (event) => {
     event.preventDefault();
-    const result = onSaveUser({
+    setSaving(true);
+    const result = await onSaveUser({
       ...draft,
+      id: editor?.mode === "edit" ? editor.user.id : undefined,
       existingEmail: editor?.mode === "edit" ? editor.user.email : "",
     });
-    if (result.error) {
+    setSaving(false);
+    if (result?.error) {
       setFormError(result.error);
       return;
     }
     setEditor(null);
   };
 
-  const roleLabel =
-    ROLE_FILTERS.find((opt) => opt.value === roleFilter)?.label ?? "Role";
-  const statusLabel =
-    STATUS_FILTERS.find((opt) => opt.value === statusFilter)?.label ?? "Status";
+  const openRestrict = (user) => {
+    setRestrictError("");
+    setRestrictTarget(user);
+    setRestrictDraft({
+      reason: "",
+      startDate: toInput(new Date()),
+      endDate: addDays(7),
+    });
+  };
+
+  const updateRestrictDraft = (event) => {
+    const { name, value } = event.target;
+    setRestrictDraft((current) => ({ ...current, [name]: value }));
+  };
+
+  const submitRestrict = async (event) => {
+    event.preventDefault();
+    const { reason, startDate, endDate } = restrictDraft;
+    if (!reason.trim() || !startDate || !endDate) {
+      setRestrictError("Reason, start, and end are all required.");
+      return;
+    }
+    if (new Date(endDate) <= new Date(startDate)) {
+      setRestrictError("The end must be after the start.");
+      return;
+    }
+    setSaving(true);
+    const result = await onToggleRestriction(restrictTarget, restrictDraft);
+    setSaving(false);
+    if (result?.error) {
+      setRestrictError(result.error);
+      return;
+    }
+    setRestrictTarget(null);
+  };
+
+  const openUnrestrict = (user) => {
+    setUnrestrictError("");
+    setUnrestrictTarget(user);
+  };
+
+  const confirmUnrestrict = async () => {
+    setSaving(true);
+    const result = await onToggleRestriction(unrestrictTarget);
+    setSaving(false);
+    if (result?.error) {
+      setUnrestrictError(result.error);
+      return;
+    }
+    setUnrestrictTarget(null);
+  };
 
   return (
     <div className="admin-page">
@@ -124,161 +276,67 @@ export default function UserManage({ users, onSaveUser, onToggleRestriction }) {
         </button>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
-        <label className="flex items-center gap-2 w-full max-w-sm rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm transition focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-100">
-          <Search className="h-4 w-4 shrink-0 text-gray-400" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name or email"
-            className="w-full border-none bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
-          />
-        </label>
+      <div className="st-toolbar">
+        <div className="st-tabs" role="tablist" aria-label="Filter by role">
+          {ROLE_TABS.map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={roleFilter === value}
+              className={`st-tab ${roleFilter === value ? "on" : ""}`}
+              onClick={() => setRoleFilter(value)}
+            >
+              {label}
+              <span className="st-count">{roleCounts[value]}</span>
+            </button>
+          ))}
+        </div>
 
-        <div className="flex items-center gap-2">
-          <div className="dropdown">
-            <div
-              tabIndex={0}
-              role="button"
-              className="flex w-32 items-center justify-between gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50/50"
-            >
-              <span className="truncate">{roleLabel}</span>
-              <svg
-                className="h-3.5 w-3.5 shrink-0 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </div>
-            <ul
-              tabIndex={-1}
-              className="dropdown-content menu z-10 mt-2 w-44 rounded-lg border border-gray-200 bg-white p-1 shadow-lg"
-            >
-              <li>
-                <a
-                  onClick={() => setRoleFilter("all")}
-                  className={`rounded-md text-sm text-gray-700 ${
-                    roleFilter === "all" ?
-                      "bg-emerald-50 font-medium text-emerald-700"
-                    : ""
-                  }`}
-                >
-                  All roles
-                </a>
-              </li>
-              <li>
-                <a
-                  onClick={() => setRoleFilter("buyer")}
-                  className={`rounded-md text-sm text-gray-700 ${
-                    roleFilter === "buyer" ?
-                      "bg-emerald-50 font-medium text-emerald-700"
-                    : ""
-                  }`}
-                >
-                  Buyer
-                </a>
-              </li>
-              <li>
-                <a
-                  onClick={() => setRoleFilter("seller")}
-                  className={`rounded-md text-sm text-gray-700 ${
-                    roleFilter === "seller" ?
-                      "bg-emerald-50 font-medium text-emerald-700"
-                    : ""
-                  }`}
-                >
-                  Seller
-                </a>
-              </li>
-            </ul>
-          </div>
+        <div className="um-filters">
+          <select
+            className="um-select"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            aria-label="Filter by status"
+          >
+            {STATUS_OPTIONS.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
 
-          <div className="dropdown">
-            <div
-              tabIndex={0}
-              role="button"
-              className="flex w-32 items-center justify-between gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50/50"
-            >
-              <span className="truncate">{statusLabel}</span>
-              <svg
-                className="h-3.5 w-3.5 shrink-0 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+          <label className="st-search">
+            <Search size={15} aria-hidden="true" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name or email"
+              aria-label="Search users"
+            />
+            {query && (
+              <button
+                type="button"
+                className="st-search-clear"
+                aria-label="Clear search"
+                onClick={() => setQuery("")}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </div>
-            <ul
-              tabIndex={-1}
-              className="dropdown-content menu z-10 mt-2 w-44 rounded-lg border border-gray-200 bg-white p-1 shadow-lg"
-            >
-              <li>
-                <a
-                  onClick={() => setStatusFilter("all")}
-                  className={`rounded-md text-sm text-gray-700 ${
-                    statusFilter === "all" ?
-                      "bg-emerald-50 font-medium text-emerald-700"
-                    : ""
-                  }`}
-                >
-                  All status
-                </a>
-              </li>
-              <li>
-                <a
-                  onClick={() => setStatusFilter("active")}
-                  className={`rounded-md text-sm text-gray-700 ${
-                    statusFilter === "active" ?
-                      "bg-emerald-50 font-medium text-emerald-700"
-                    : ""
-                  }`}
-                >
-                  Active
-                </a>
-              </li>
-              <li>
-                <a
-                  onClick={() => setStatusFilter("restricted")}
-                  className={`rounded-md text-sm text-gray-700 ${
-                    statusFilter === "restricted" ?
-                      "bg-emerald-50 font-medium text-emerald-700"
-                    : ""
-                  }`}
-                >
-                  Restricted
-                </a>
-              </li>
-            </ul>
-          </div>
+                <X size={13} />
+              </button>
+            )}
+          </label>
 
           {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="flex items-center gap-1 rounded-lg px-2.5 py-2.5 text-xs font-medium text-gray-400 transition hover:bg-red-50 hover:text-red-500"
-            >
-              <X className="h-3.5 w-3.5" />
-              Clear
+            <button type="button" className="um-reset" onClick={clearFilters}>
+              <X size={13} /> Reset
             </button>
           )}
         </div>
       </div>
 
-      <div className="table-card admin-users-table overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="table-card st-card">
         {users.length === 0 ?
           <EmptyState
             icon={Users}
@@ -286,71 +344,78 @@ export default function UserManage({ users, onSaveUser, onToggleRestriction }) {
             description="New buyer registrations will appear here."
           />
         : filteredUsers.length === 0 ?
-          <div className="empty flex flex-col items-center gap-1 py-14 text-center">
-            <h3 className="text-sm font-semibold text-gray-900">
-              No matching users
-            </h3>
-            <p className="text-sm text-gray-500">
-              Try a different search or change the filters.
-            </p>
-          </div>
-        : <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
+          <EmptyState
+            icon={Search}
+            title="No matching users"
+            description="Try a different search or change the filters."
+          />
+        : <div className="st-scroll">
+            <table className="st-table">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50/80 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  <th className="px-5 py-3">Name</th>
-                  <th className="px-5 py-3">Email</th>
-                  <th className="px-5 py-3">Role</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Action</th>
+                <tr>
+                  <th>User</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredUsers.map((user) => (
-                  <tr
-                    key={user.email}
-                    className="border-b border-gray-100 last:border-0 hover:bg-emerald-50/30"
-                  >
-                    <td className="px-5 py-3.5 font-medium text-gray-900 text-sm">
-                      {user.name}
+                  <tr key={user.id ?? user.email}>
+                    <td>
+                      <div className="st-person">
+                        <span className="st-avatar" aria-hidden="true">
+                          {initials(user.name)}
+                        </span>
+                        <strong>{user.name}</strong>
+                      </div>
                     </td>
-                    <td className="px-5 py-3.5 text-sm text-gray-600">
-                      {user.email}
+                    <td className="st-muted">{user.email}</td>
+                    <td>
+                      <RolePill type={user.type} />
                     </td>
-                    <td className="px-5 py-3.5">
-                      <span className="text-sm font-medium text-gray-700">
-                        {user.type}
-                      </span>
+                    <td
+                      title={
+                        user.restricted ?
+                          `${user.restrictionReason} (until ${formatDateTime(user.restrictionEnd)})`
+                        : undefined
+                      }
+                    >
+                      <StatusPill restricted={user.restricted} />
                     </td>
-                    <td className="px-5 py-3.5">
-                      <Status>
-                        {user.restricted ? "Restricted" : "Active"}
-                      </Status>
-                    </td>
-                    <td className="admin-user-actions px-5 py-3.5">
-                      <div className="admin-user-action-row flex items-center gap-4">
+                    <td>
+                      <div className="st-actions">
                         <button
-                          className="text-btn flex items-center gap-1 text-emerald-600 hover:text-emerald-700"
+                          type="button"
+                          className="st-btn"
                           onClick={() => openEditor("view", user)}
                         >
-                          <Eye size={14} /> View
+                          <Eye size={13} /> View
                         </button>
                         <button
-                          className="text-btn text-gray-500 hover:text-gray-800"
+                          type="button"
+                          className="st-btn"
                           onClick={() => openEditor("edit", user)}
                         >
-                          Edit
+                          <Pencil size={13} /> Edit
                         </button>
-                        <button
-                          className={`text-btn font-medium ${
-                            user.restricted ?
-                              "text-emerald-600 hover:text-emerald-700"
-                            : "text-red-500 hover:text-red-600"
-                          }`}
-                          onClick={() => onToggleRestriction(user)}
-                        >
-                          {user.restricted ? "Restore" : "Restrict"}
-                        </button>
+                        {user.restricted ?
+                          <button
+                            type="button"
+                            className="st-btn st-btn-good"
+                            onClick={() => openUnrestrict(user)}
+                          >
+                            <ShieldCheck size={13} /> Unrestrict
+                          </button>
+                        : <button
+                            type="button"
+                            className="st-btn st-btn-warn"
+                            onClick={() => openRestrict(user)}
+                          >
+                            <ShieldOff size={13} /> Restrict
+                          </button>
+                        }
                       </div>
                     </td>
                   </tr>
@@ -363,12 +428,12 @@ export default function UserManage({ users, onSaveUser, onToggleRestriction }) {
 
       {editor && (
         <div
-          className="admin-dialog-backdrop"
+          className="admin-dialog-backdrop st-backdrop"
           role="presentation"
           onMouseDown={() => setEditor(null)}
         >
           <section
-            className="admin-user-dialog"
+            className="admin-user-dialog st-dialog"
             role="dialog"
             aria-modal="true"
             aria-labelledby="admin-user-dialog-title"
@@ -397,31 +462,57 @@ export default function UserManage({ users, onSaveUser, onToggleRestriction }) {
                 ×
               </button>
             </div>
+
             {editor.mode === "view" ?
-              <div className="admin-user-details">
-                <div>
-                  <span>Name</span>
-                  <strong>{draft.name}</strong>
+              <>
+                <div className="st-profile">
+                  <span className="st-avatar st-avatar-lg" aria-hidden="true">
+                    {initials(draft.name)}
+                  </span>
+                  <div>
+                    <strong>{draft.name}</strong>
+                    <StatusPill restricted={editor.user.restricted} />
+                  </div>
                 </div>
-                <div>
-                  <span>Email</span>
-                  <strong>{draft.email}</strong>
+                <div className="admin-user-details">
+                  <div>
+                    <span>Email</span>
+                    <strong>{draft.email}</strong>
+                  </div>
+                  <div>
+                    <span>Phone</span>
+                    <strong>{draft.phone || "—"}</strong>
+                  </div>
+                  <div>
+                    <span>Role</span>
+                    <RolePill type={draft.accountType} />
+                  </div>
+                  {editor.user.restricted && (
+                    <>
+                      <div className="um-full">
+                        <span>Restriction reason</span>
+                        <strong>{editor.user.restrictionReason}</strong>
+                      </div>
+                      <div>
+                        <span>Starts</span>
+                        <strong>
+                          {formatDateTime(editor.user.restrictionStart)}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Ends</span>
+                        <strong>
+                          {formatDateTime(editor.user.restrictionEnd)}
+                        </strong>
+                      </div>
+                    </>
+                  )}
+                  <button className="primary" onClick={() => setEditor(null)}>
+                    Close
+                  </button>
                 </div>
-                <div>
-                  <span>Role</span>
-                  <strong>{draft.accountType}</strong>
-                </div>
-                <div>
-                  <span>Status</span>
-                  <Status>
-                    {editor.user.restricted ? "Restricted" : "Active"}
-                  </Status>
-                </div>
-                <button className="primary" onClick={() => setEditor(null)}>
-                  Close
-                </button>
-              </div>
-            : <form className="admin-user-form" onSubmit={submitUser}>
+              </>
+            : <form className="admin-user-form um-form" onSubmit={submitUser}>
                 <label>
                   Full name
                   <input
@@ -444,6 +535,19 @@ export default function UserManage({ users, onSaveUser, onToggleRestriction }) {
                     required
                   />
                 </label>
+                {editor.mode === "create" && (
+                  <label>
+                    Phone number
+                    <input
+                      name="phone"
+                      type="tel"
+                      value={draft.phone}
+                      onChange={updateDraft}
+                      autoComplete="tel"
+                      required
+                    />
+                  </label>
+                )}
                 <label>
                   Role
                   <select
@@ -464,7 +568,7 @@ export default function UserManage({ users, onSaveUser, onToggleRestriction }) {
                       value={draft.password}
                       onChange={updateDraft}
                       autoComplete="new-password"
-                      minLength="6"
+                      minLength="8"
                       required
                     />
                   </label>
@@ -478,12 +582,206 @@ export default function UserManage({ users, onSaveUser, onToggleRestriction }) {
                   <button type="button" onClick={() => setEditor(null)}>
                     Cancel
                   </button>
-                  <button className="primary" type="submit">
-                    {editor.mode === "create" ? "Add User" : "Save changes"}
+                  <button className="primary" type="submit" disabled={saving}>
+                    {saving ?
+                      "Saving..."
+                    : editor.mode === "create" ?
+                      "Add User"
+                    : "Save changes"}
                   </button>
                 </div>
               </form>
             }
+          </section>
+        </div>
+      )}
+
+      {restrictTarget && (
+        <div
+          className="admin-dialog-backdrop st-backdrop"
+          role="presentation"
+          onMouseDown={() => setRestrictTarget(null)}
+        >
+          <section
+            className="admin-user-dialog st-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="restrict-dialog-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="admin-dialog-heading">
+              <div>
+                <h2 id="restrict-dialog-title">Restrict account</h2>
+                <p>
+                  <strong>{restrictTarget.name}</strong> ({restrictTarget.email}
+                  ) will not be able to sign in during this period.
+                </p>
+              </div>
+              <button
+                className="admin-dialog-close"
+                aria-label="Close"
+                onClick={() => setRestrictTarget(null)}
+              >
+                ×
+              </button>
+            </div>
+
+            <form
+              className="admin-user-form um-form"
+              onSubmit={submitRestrict}
+              noValidate
+            >
+              <label className="um-full">
+                Reason
+                <textarea
+                  name="reason"
+                  value={restrictDraft.reason}
+                  onChange={updateRestrictDraft}
+                  maxLength={500}
+                  rows={3}
+                  placeholder="Explain why this account is being restricted"
+                />
+                <span className="um-counter">
+                  {restrictDraft.reason.length}/500
+                </span>
+              </label>
+
+              <label>
+                Start
+                <DateTimeField
+                  id="restrict-start"
+                  name="startDate"
+                  value={restrictDraft.startDate}
+                  onChange={updateRestrictDraft}
+                />
+              </label>
+              <label>
+                End
+                <DateTimeField
+                  id="restrict-end"
+                  name="endDate"
+                  value={restrictDraft.endDate}
+                  min={restrictDraft.startDate}
+                  onChange={updateRestrictDraft}
+                />
+              </label>
+
+              <div className="um-presets um-full">
+                <span>Quick set:</span>
+                {[
+                  ["1 day", 1],
+                  ["7 days", 7],
+                  ["30 days", 30],
+                ].map(([text, days]) => (
+                  <button
+                    key={days}
+                    type="button"
+                    className="um-preset"
+                    onClick={() =>
+                      setRestrictDraft((d) => ({
+                        ...d,
+                        endDate: addDays(days),
+                      }))
+                    }
+                  >
+                    {text}
+                  </button>
+                ))}
+              </div>
+
+              {restrictError && (
+                <p className="admin-form-error" role="alert">
+                  {restrictError}
+                </p>
+              )}
+
+              <div className="admin-dialog-actions">
+                <button type="button" onClick={() => setRestrictTarget(null)}>
+                  Cancel
+                </button>
+                <button
+                  className="primary st-danger"
+                  type="submit"
+                  disabled={saving}
+                >
+                  {saving ? "Restricting..." : "Restrict account"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {unrestrictTarget && (
+        <div
+          className="admin-dialog-backdrop st-backdrop"
+          role="presentation"
+          onMouseDown={() => setUnrestrictTarget(null)}
+        >
+          <section
+            className="admin-user-dialog st-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="unrestrict-dialog-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="admin-dialog-heading">
+              <div>
+                <h2 id="unrestrict-dialog-title">Unrestrict account</h2>
+                <p>
+                  <strong>{unrestrictTarget.name}</strong> will be able to sign
+                  in again right away.
+                </p>
+              </div>
+              <button
+                className="admin-dialog-close"
+                aria-label="Close"
+                onClick={() => setUnrestrictTarget(null)}
+              >
+                ×
+              </button>
+            </div>
+
+            {unrestrictTarget.restrictionReason && (
+              <div className="um-reason-box">
+                <div>
+                  <span>Reason</span>
+                  <strong>{unrestrictTarget.restrictionReason}</strong>
+                </div>
+                <div>
+                  <span>Start</span>
+                  <strong>
+                    {formatDateTime(unrestrictTarget.restrictionStart)}
+                  </strong>
+                </div>
+                <div>
+                  <span>End</span>
+                  <strong>
+                    {formatDateTime(unrestrictTarget.restrictionEnd)}
+                  </strong>
+                </div>
+              </div>
+            )}
+
+            {unrestrictError && (
+              <p className="admin-form-error" role="alert">
+                {unrestrictError}
+              </p>
+            )}
+
+            <div className="admin-dialog-actions">
+              <button type="button" onClick={() => setUnrestrictTarget(null)}>
+                Cancel
+              </button>
+              <button
+                className="primary"
+                type="button"
+                disabled={saving}
+                onClick={confirmUnrestrict}
+              >
+                {saving ? "Saving..." : "Unrestrict"}
+              </button>
+            </div>
           </section>
         </div>
       )}

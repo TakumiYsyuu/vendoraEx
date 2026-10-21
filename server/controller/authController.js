@@ -7,6 +7,30 @@ function generateCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+// Returns the active restriction for a user, or null if there is none
+async function getActiveRestriction(userId) {
+  const [rows] = await db.query(
+    `SELECT restriction_reason AS reason,
+          DATE_FORMAT(restriction_start, '%b %e, %Y, %l:%i %p') AS startDate,
+          DATE_FORMAT(restriction_end, '%b %e, %Y, %l:%i %p') AS endDate
+   FROM users
+   WHERE id = ? AND restriction_start IS NOT NULL
+     AND restriction_start <= NOW()
+     AND (restriction_end IS NULL OR restriction_end >= NOW())`,
+    [userId],
+  );
+  return rows[0] || null;
+}
+
+function restrictedResponse(res, restriction) {
+  return res.status(403).json({
+    success: false,
+    code: "ACCOUNT_RESTRICTED",
+    message: "Your account is restricted.",
+    restriction,
+  });
+}
+
 export const register = async (req, res) => {
   try {
     const { fullname, email, phone_num, password, role } = req.body;
@@ -109,6 +133,10 @@ export const login = async (req, res) => {
       });
     }
 
+    // Blocks restricted users before any OTP email is sent
+    const restriction = await getActiveRestriction(user.id);
+    if (restriction) return restrictedResponse(res, restriction);
+
     if (deviceId) {
       const [trusted] = await db.query(
         "SELECT id FROM trusted_devices WHERE user_id = ? AND device_id = ?",
@@ -176,6 +204,10 @@ export const verifyLoginOtp = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid code." });
     }
     const user = users[0];
+
+    // A code sent before the restriction must not let the user in
+    const restriction = await getActiveRestriction(user.id);
+    if (restriction) return restrictedResponse(res, restriction);
 
     const [rows] = await db.query(
       `SELECT id FROM login_otps

@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { loginAccount, verifyLoginOtp } from "../logic/auth";
+import RestrictedPopup from "../components/RestrictedPopup";
 import "../styles/LoginPage.css";
 
 const PASSWORD_MAX = 16;
@@ -36,6 +37,7 @@ export default function LoginPage({
   const [otpEmail, setOtpEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [otpError, setOtpError] = useState("");
+  const [restriction, setRestriction] = useState(null);
 
   const errors = {
     email: validate.email(email),
@@ -62,6 +64,10 @@ export default function LoginPage({
     }
 
     const result = await loginAccount({ email: email.trim(), password });
+    if (result.restriction) {
+      setRestriction(result.restriction);
+      return;
+    }
     if (result.error) return setError(result.error);
     if (result.otpRequired) {
       setOtpEmail(result.email);
@@ -207,6 +213,11 @@ export default function LoginPage({
           </button>
         </p>
       </section>
+
+      <RestrictedPopup
+        restriction={restriction}
+        onClose={() => setRestriction(null)}
+      />
     </main>
   );
 }

@@ -1,0 +1,345 @@
+/* toolbar: filter tabs + search */
+.st-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.st-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+.st-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #50616e;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+.st-tab:hover {
+  background: #f1f7f5;
+}
+.st-tab.on {
+  background: #e9f8f2;
+  color: #087c5d;
+}
+.st-count {
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #eef2f5;
+  color: #6e7c8b;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+.st-tab.on .st-count {
+  background: var(--green);
+  color: #fff;
+}
+
+.st-search {
+  position: relative;
+  width: min(100%, 320px);
+}
+.st-search > svg {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  color: #87949f;
+  transform: translateY(-50%);
+  pointer-events: none;
+  transition: color 160ms ease;
+}
+.st-search:focus-within > svg {
+  color: var(--green);
+}
+.st-search input {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 34px 0 35px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  color: #172c3f;
+  font: inherit;
+  font-size: 12px;
+  outline: 0;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+.st-search input::placeholder {
+  color: #9aa6b0;
+}
+.st-search input:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(10, 168, 117, 0.13);
+}
+.st-search input::-webkit-search-cancel-button {
+  display: none;
+}
+.st-search-clear {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #87949f;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+.st-search-clear:hover {
+  background: #e9f8f2;
+  color: #087c5d;
+}
+
+/* table */
+.table-card.st-card {
+  padding: 0;
+  overflow: hidden;
+}
+.st-scroll {
+  overflow-x: auto;
+}
+.st-table {
+  width: 100%;
+  min-width: 700px;
+  border-collapse: collapse;
+}
+.st-table th {
+  padding: 12px 16px;
+  border-bottom: 1px solid #edf1f3;
+  background: #fafcfd;
+  color: #7d8a96;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.st-table td {
+  padding: 13px 16px;
+  border-bottom: 1px solid #edf1f3;
+  color: #43586a;
+  font-size: 12px;
+  vertical-align: middle;
+}
+.st-table tbody tr {
+  transition: background 140ms ease;
+}
+.st-table tbody tr:hover {
+  background: #f6fbf9;
+}
+.st-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.st-muted {
+  color: #5d6f7e;
+}
+
+.st-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.st-person strong {
+  color: #1d3345;
+  font-size: 12px;
+  font-weight: 650;
+}
+.st-avatar {
+  display: grid;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  background: #e1f5ed;
+  color: #087c5d;
+  font-size: 11px;
+  font-weight: 800;
+}
+.st-avatar-lg {
+  flex-basis: 48px;
+  width: 48px;
+  height: 48px;
+  font-size: 15px;
+}
+
+/* status pill */
+.st-status {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.st-active {
+  background: #dff7ed;
+  color: #0b9069;
+}
+.st-restricted {
+  background: #fde8e8;
+  color: #c0392b;
+}
+
+/* row actions */
+.st-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.st-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: #50616e;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+.st-btn:hover {
+  background: #f6f8fa;
+  border-color: #cfd8df;
+}
+.st-btn-good {
+  border-color: #bfe6d8;
+  background: #f4fbf8;
+  color: #087c5d;
+}
+.st-btn-good:hover {
+  background: #e3f6ee;
+  border-color: #9edcc9;
+}
+.st-btn-warn {
+  color: #b9770e;
+}
+.st-btn-warn:hover {
+  background: #fff7e8;
+  border-color: #f0d9a8;
+}
+.st-icon-btn {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #b4bcc4;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease;
+}
+.st-icon-btn:hover {
+  background: #fdf0f0;
+  border-color: #f6caca;
+  color: #c0392b;
+}
+.st-btn:focus-visible,
+.st-icon-btn:focus-visible,
+.st-tab:focus-visible {
+  outline: 3px solid rgba(10, 168, 117, 0.28);
+  outline-offset: 2px;
+}
+
+/* dialogs */
+.admin-dialog-backdrop.st-backdrop {
+  background: rgba(8, 28, 44, 0.38);
+}
+.admin-user-dialog.st-dialog {
+  width: min(100%, 480px);
+}
+.admin-user-dialog.st-dialog-sm {
+  width: min(100%, 420px);
+}
+.st-profile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 14px;
+  border-radius: 10px;
+  background: #f5f9f8;
+}
+.st-profile > div {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+}
+.st-profile strong {
+  color: #1d3345;
+  font-size: 14px;
+}
+.primary.st-danger {
+  background: #d94b58;
+  box-shadow: 0 4px 10px rgba(217, 75, 88, 0.18);
+}
+.primary.st-danger:hover:not(:disabled) {
+  background: #c23f4c;
+}
+.primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 760px) {
+  .st-toolbar {
+    align-items: stretch;
+  }
+  .st-tabs {
+    width: 100%;
+    overflow-x: auto;
+  }
+  .st-search {
+    width: 100%;
+  }
+  .st-search input {
+    font-size: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .st-tab,
+  .st-btn,
+  .st-icon-btn,
+  .st-table tbody tr {
+    transition: none;
+  }
+}

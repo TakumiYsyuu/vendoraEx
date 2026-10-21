@@ -18,7 +18,8 @@ import Status from "../components/Status";
 import StaffManage from "./StaffManage";
 import ShopAndProduct from "./PoductBoard";
 import UserManage from "./UserManage";
-import ShopApproval from "./ShopApproval";
+import ShopApprovalContainer from "./ShopApprovalContainer";
+import { fetchApplications } from "../logic/verificationAdmin";
 
 import {
   getReports,
@@ -31,6 +32,7 @@ import {
   getAdminStaff,
   saveAdminStaff,
   setStaffRestriction,
+  deleteAdminStaff,
 } from "../logic/staff";
 
 import {
@@ -166,9 +168,9 @@ function Dashboard({
         />
         <StatCard
           icon={Store}
-          label="Active Sellers"
+          label="Verified Sellers"
           value={stats.activeSellers}
-          detail="Shops not restricted"
+          detail="Approved shops"
         />
         <StatCard
           icon={ClipboardList}
@@ -421,28 +423,13 @@ export default function AdminModeration({ page, go, user }) {
   const [adminProducts, setAdminProducts] = useState([]);
   const [staff, setStaff] = useState([]);
   const [orders, setOrders] = useState([]);
-
-  const [applications, setApplications] = useState([
-    {
-      id: 1,
-      shopName: "Sample Shop",
-      ownerName: "Juan Dela Cruz",
-      email: "juan@example.com",
-      phone: "0917 000 0000",
-      address: "123 Rizal St, Manila",
-      description: "Handmade home goods.",
-      submittedAt: "Sep 27, 2026",
-      status: "Pending",
-      documents: [
-        { label: "Business permit", url: "" },
-        { label: "Valid ID", url: "" },
-      ],
-    },
-  ]);
+  const [applications, setApplications] = useState([]);
 
   const stats = {
     ...getAdminStats(reports),
     totalUsers: users.length,
+    activeSellers: applications.filter((a) => a.status === "Approved").length,
+    pendingReviews: applications.filter((a) => a.status === "Pending").length,
   };
 
   const loadAdminData = async () => {
@@ -474,17 +461,34 @@ export default function AdminModeration({ page, go, user }) {
     loadAdminData();
   }, []);
 
-  const handleUserRestriction = async (user) => {
-    try {
-      await setUserRestriction(user.email, !user.restricted);
+  // Refresh when the page changes, so the dashboard's pending list is current after approving
+  useEffect(() => {
+    fetchApplications()
+      .then(setApplications)
+      .catch((error) => console.error("Failed to load applications:", error));
+  }, [page]);
 
-      setNotice(
-        user.restricted ? `Restored: ${user.name}` : `Restricted: ${user.name}`,
+  const handleUserRestriction = async (user, details) => {
+    try {
+      const result = await setUserRestriction(
+        user.id,
+        !user.restricted,
+        details,
       );
 
-      await loadAdminData();
+      if (!result?.error) {
+        setNotice(
+          user.restricted ?
+            `Restored: ${user.name}`
+          : `Restricted: ${user.name}`,
+        );
+        await loadAdminData();
+      }
+
+      return result;
     } catch (error) {
       console.error("Failed to update user restriction:", error);
+      return { error: "Failed to update restriction." };
     }
   };
 
@@ -512,7 +516,7 @@ export default function AdminModeration({ page, go, user }) {
 
   const handleStaffRestriction = async (member) => {
     try {
-      await setStaffRestriction(member.email, !member.restricted);
+      await setStaffRestriction(member.id, !member.restricted);
 
       setNotice(
         member.restricted ?
@@ -550,32 +554,28 @@ export default function AdminModeration({ page, go, user }) {
     }
   };
 
+  const handleDeleteStaff = async (member) => {
+    try {
+      const result = await deleteAdminStaff(member.id);
+
+      if (!result.error) {
+        setNotice(`Deleted: ${member.name}`);
+        await loadAdminData();
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Failed to delete staff:", error);
+      return { error: "Failed to delete staff." };
+    }
+  };
+
   const handleSaveProduct = async (product, changes) => {
     console.warn("updateSellerProduct is not connected yet.");
 
     return {
       error: "Product update is not connected to the backend yet.",
     };
-  };
-
-  const handleApprove = async (application) => {
-    setApplications((list) =>
-      list.map((a) =>
-        a.id === application.id ? { ...a, status: "Approved" } : a,
-      ),
-    );
-    return {};
-  };
-
-  const handleDecline = async (application, declineReason) => {
-    setApplications((list) =>
-      list.map((a) =>
-        a.id === application.id ?
-          { ...a, status: "Declined", declineReason }
-        : a,
-      ),
-    );
-    return {};
   };
 
   const handleSaveSettings = (settings) => saveAdminSettings(settings);
@@ -610,6 +610,7 @@ export default function AdminModeration({ page, go, user }) {
         staff={staff}
         onSaveStaff={handleSaveStaff}
         onToggleRestriction={handleStaffRestriction}
+        onDeleteStaff={handleDeleteStaff}
       />
     );
   }
@@ -628,13 +629,7 @@ export default function AdminModeration({ page, go, user }) {
   }
 
   if (page === "shop-Request") {
-    return (
-      <ShopApproval
-        applications={applications}
-        onApprove={handleApprove}
-        onDecline={handleDecline}
-      />
-    );
+    return <ShopApprovalContainer />;
   }
 
   return (

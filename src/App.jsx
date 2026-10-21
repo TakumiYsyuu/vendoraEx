@@ -1,5 +1,5 @@
 import "../src/styles/App.css";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { products } from "./data/products";
 
 import LoginPage from "./auth/LoginPage";
@@ -26,12 +26,19 @@ import {
   persistUserUpdate,
   clearStoredUser,
 } from "./logic/auth";
-import { loadWishlist, saveWishlist } from "./logic/wishlist";
+
 import {
-  getStorefrontProducts,
+  fetchWishlist,
+  addToWishlist,
+  removeFromWishlist,
+} from "./logic/wishlist";
+
+import {
+  fetchStorefrontProducts,
   filterProducts,
   saveSellerProduct,
 } from "./logic/products";
+
 import {
   purgeLegacyOrders,
   loadPurchaseCategories,
@@ -54,16 +61,30 @@ export default function App() {
   const [selected, setSelected] = useState(products[0]);
   const [cart, setCart] = useState([]);
   const [quantities, setQuantities] = useState({});
-  const [wishlistIds, setWishlistIds] = useState(() => loadWishlist(user));
+  const [wishlistIds, setWishlistIds] = useState([]);
   const [query, setQuery] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [messageTarget, setMessageTarget] = useState("");
   const [reportProduct, setReportProduct] = useState(null);
-  const [, setProductVersion] = useState(0);
+  const [storefrontProducts, setStorefrontProducts] = useState([]); // CHANGED
   const userEmail = user?.email || "";
   const isModerator = user?.role === "admin" || user?.role === "staff";
 
-  // Removes obsolete demo orders once when the app first starts.
+  const refreshProducts = () =>
+    fetchStorefrontProducts()
+      .then((list) => {
+        setStorefrontProducts(list);
+      })
+      .catch((err) => console.error("Failed to load products:", err));
+
+  useEffect(() => {
+    if (!userEmail) {
+      setStorefrontProducts([]);
+      return;
+    }
+    refreshProducts();
+  }, [userEmail]);
+
   useEffect(() => {
     purgeLegacyOrders();
   }, []);
@@ -71,14 +92,32 @@ export default function App() {
     user ? loadPurchaseCategories(user) : [],
   );
 
-  // Read listings on each app render; the refresh counter above forces a render after seller changes.
-  const storefrontProducts = userEmail ? getStorefrontProducts() : [];
+  // CHANGED: storefrontProducts now comes from state (database), not localStorage
   const filteredStorefront = filterProducts(storefrontProducts, query);
+
+  const skipClear = useRef(false);
+  useEffect(() => {
+    if (skipClear.current) {
+      skipClear.current = false;
+      return;
+    }
+    setQuery("");
+  }, [page]);
+
+  const handleSearch = (value) => {
+    setQuery(value);
+    const browsing = ["home", "categories", "deals", "wishlist"];
+    if (value.trim() && !browsing.includes(page)) {
+      skipClear.current = true;
+      setPage("categories");
+    }
+  };
 
   const go = (nextPage) => setPage(nextPage);
 
   // Category selection also returns the buyer to the storefront product section.
   const selectCategory = (category) => {
+    if (page !== "home") skipClear.current = true;
     setQuery(category);
     setPage("home");
     setTimeout(
@@ -99,14 +138,31 @@ export default function App() {
     setCart((c) => (c.some((x) => x.id === p.id) ? c : [...c, p]));
     setQuantities((q) => ({ ...q, [p.id]: (q[p.id] || 0) + amount }));
   };
-  const toggleWishlist = (id) =>
-    setWishlistIds((ids) =>
-      ids.includes(id) ? ids.filter((itemId) => itemId !== id) : [...ids, id],
-    );
+
+  // Load this user's wishlist from the database
   useEffect(() => {
-    if (!userEmail) return;
-    saveWishlist(userEmail, wishlistIds);
-  }, [userEmail, wishlistIds]);
+    if (!userEmail) {
+      setWishlistIds([]);
+      return;
+    }
+    fetchWishlist()
+      .then(setWishlistIds)
+      .catch((err) => console.error("Failed to load wishlist:", err));
+  }, [userEmail]);
+
+  // Updates the heart instantly, then saves; undoes it if the save fails
+  const toggleWishlist = (id) => {
+    const saved = wishlistIds.includes(id);
+    setWishlistIds((ids) =>
+      saved ? ids.filter((i) => i !== id) : [...ids, id],
+    );
+    (saved ? removeFromWishlist(id) : addToWishlist(id)).catch(() => {
+      setWishlistIds((ids) =>
+        saved ? [...ids, id] : ids.filter((i) => i !== id),
+      );
+    });
+  };
+
   const cartCount = cart.reduce(
     (total, p) => total + (quantities[p.id] || 1),
     0,
@@ -115,7 +171,7 @@ export default function App() {
   const login = (nextUser, remember) => {
     const storedUser = persistLogin(nextUser, remember);
     setUser(storedUser);
-    setWishlistIds(loadWishlist(storedUser));
+    setWishlistIds([]);
     setPurchaseCategories(loadPurchaseCategories(storedUser));
     setCart([]);
     setQuantities({});
@@ -132,8 +188,7 @@ export default function App() {
   const updateUser = (nextUser) => setUser(persistUserUpdate(user, nextUser));
   const addSellerProduct = (product) => {
     saveSellerProduct(user, product);
-    // Local storage does not trigger React renders, so refresh the buyer catalogue explicitly.
-    setProductVersion((version) => version + 1);
+    refreshProducts(); // CHANGED: was setProductVersion
     setPage("products");
   };
   const handlePlaceOrder = () => {
@@ -154,6 +209,7 @@ export default function App() {
     setQuantities({});
     setWishlistIds([]);
     setPurchaseCategories([]);
+    setStorefrontProducts([]); // CHANGED
     setMobileOpen(false);
     setPage("home");
   };
@@ -164,7 +220,7 @@ export default function App() {
       setPage("seller-dashboard");
       return;
     }
-    setProductVersion((version) => version + 1);
+    refreshProducts(); // CHANGED: reload so new seller products show up
     setMode("buyer");
     setPage("home");
   };
@@ -279,10 +335,16 @@ export default function App() {
         <Topbar
           user={user}
           onMenu={() => setMobileOpen(true)}
-          onSearch={setQuery}
+          onSearch={handleSearch}
+          query={query}
           onAccountSettings={() => setPage("account-settings")}
           onSwitchMode={switchMode}
-          onNotification={(type) => setPage(type)}
+          onNotification={(type) => {
+            if (type === "messages") setPage("messages");
+            else if (type === "orders") setPage("orders");
+            else setPage(mode === "seller" ? "seller-dashboard" : "home");
+            setMobileOpen(false);
+          }}
           onLogout={logout}
           onCart={() => setPage("cart")}
           cartCount={cartCount}

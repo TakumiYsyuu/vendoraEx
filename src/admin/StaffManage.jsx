@@ -1,6 +1,19 @@
-import { useState, useMemo, useEffect } from "react";
-import { Plus, Search, X, Eye, Users } from "lucide-react";
-import Status from "../components/Status";
+import { useState, useMemo } from "react";
+import {
+  Eye,
+  Pencil,
+  Plus,
+  Search,
+  ShieldCheck,
+  ShieldOff,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
+import { initials } from "../utils/helpers";
+import "../styles/staffManage.css";
+
+const FILTERS = ["All", "Active", "Restricted"];
 
 function EmptyState({ icon: Icon, title, description }) {
   return (
@@ -12,65 +25,152 @@ function EmptyState({ icon: Icon, title, description }) {
   );
 }
 
+// The API returns DB column names (fullname, phone_num, is_restricted);
+// older callers used name / phone / restricted. Read either.
+const nameOf = (member) => member.fullname ?? member.name ?? "";
+const phoneOf = (member) => member.phone_num ?? member.phone ?? "";
+const isRestricted = (member) =>
+  Boolean(Number(member.is_restricted ?? member.restricted ?? 0));
+
+const StatusPill = ({ restricted }) => (
+  <span className={`st-status ${restricted ? "st-restricted" : "st-active"}`}>
+    {restricted ? "Restricted" : "Active"}
+  </span>
+);
+
 export default function StaffManage({
-  staff,
+  staff = [],
   onSaveStaff,
   onToggleRestriction,
+  onDeleteStaff,
 }) {
   const [editor, setEditor] = useState(null);
   const [draft, setDraft] = useState({
     name: "",
     email: "",
+    phone: "",
     password: "",
   });
   const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("All");
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    return () => {
-      setQuery("");
-    };
-  }, []);
+  const counts = useMemo(
+    () => ({
+      All: staff.length,
+      Active: staff.filter((m) => !isRestricted(m)).length,
+      Restricted: staff.filter(isRestricted).length,
+    }),
+    [staff],
+  );
 
   const filteredStaff = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return staff;
-    return staff.filter(
-      (member) =>
-        member.name?.toLowerCase().includes(q) ||
-        member.email?.toLowerCase().includes(q),
-    );
-  }, [staff, query]);
+    return staff.filter((member) => {
+      const matchesFilter =
+        filter === "All" ||
+        (filter === "Restricted" ?
+          isRestricted(member)
+        : !isRestricted(member));
+      const matchesSearch =
+        !q ||
+        nameOf(member).toLowerCase().includes(q) ||
+        member.email?.toLowerCase().includes(q);
+      return matchesFilter && matchesSearch;
+    });
+  }, [staff, query, filter]);
 
-  const hasActiveFilters = query.trim() !== "";
-
-  const clearFilters = () => setQuery("");
+  const closeEditor = () => {
+    if (saving) return;
+    setEditor(null);
+  };
 
   const openEditor = (mode, member) => {
     setFormError("");
     setEditor({ mode, member });
     setDraft(
       member ?
-        { name: member.name, email: member.email, password: "" }
-      : { name: "", email: "", password: "" },
+        {
+          name: nameOf(member),
+          email: member.email ?? "",
+          phone: phoneOf(member),
+          password: "",
+        }
+      : { name: "", email: "", phone: "", password: "" },
     );
   };
+
   const updateDraft = (event) => {
     const { name, value } = event.target;
     setDraft((current) => ({ ...current, [name]: value }));
   };
-  const submitStaff = (event) => {
+
+  const submitStaff = async (event) => {
     event.preventDefault();
-    const result = onSaveStaff({
-      ...draft,
-      existingEmail: editor?.mode === "edit" ? editor.member.email : "",
-    });
-    if (result.error) {
-      setFormError(result.error);
-      return;
+    if (saving) return;
+
+    setFormError("");
+    setSaving(true);
+    try {
+      const result = await onSaveStaff({
+        ...draft,
+        fullname: draft.name,
+        id: editor?.mode === "edit" ? editor.member.id : undefined,
+        existingEmail: editor?.mode === "edit" ? editor.member.email : "",
+      });
+      if (result?.error) {
+        setFormError(result.error);
+        return;
+      }
+      setEditor(null);
+    } catch (error) {
+      setFormError(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Could not save staff member.",
+      );
+    } finally {
+      setSaving(false);
     }
-    setEditor(null);
   };
+
+  const openDelete = (member) => {
+    setDeleteError("");
+    setDeleteTarget(member);
+  };
+
+  const closeDelete = () => {
+    if (deleting) return;
+    setDeleteTarget(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      const result = await onDeleteStaff(deleteTarget);
+      if (result?.error) {
+        setDeleteError(result.error);
+        return;
+      }
+      setDeleteTarget(null);
+    } catch (error) {
+      setDeleteError(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Could not delete staff member.",
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const hasSearch = query.trim() !== "";
 
   return (
     <div className="admin-page">
@@ -87,31 +187,46 @@ export default function StaffManage({
         </button>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
-        <label className="flex items-center gap-2 w-full max-w-sm rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm transition focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-100">
-          <Search className="h-4 w-4 shrink-0 text-gray-400" />
+      <div className="st-toolbar">
+        <div className="st-tabs" role="tablist" aria-label="Filter staff">
+          {FILTERS.map((name) => (
+            <button
+              key={name}
+              type="button"
+              role="tab"
+              aria-selected={filter === name}
+              className={`st-tab ${filter === name ? "on" : ""}`}
+              onClick={() => setFilter(name)}
+            >
+              {name}
+              <span className="st-count">{counts[name]}</span>
+            </button>
+          ))}
+        </div>
+
+        <label className="st-search">
+          <Search size={15} aria-hidden="true" />
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search name or email"
-            className="w-full border-none bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+            aria-label="Search staff"
           />
+          {hasSearch && (
+            <button
+              type="button"
+              className="st-search-clear"
+              aria-label="Clear search"
+              onClick={() => setQuery("")}
+            >
+              <X size={13} />
+            </button>
+          )}
         </label>
-
-        {hasActiveFilters && (
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="flex items-center gap-1 self-start rounded-lg px-2.5 py-2.5 text-xs font-medium text-gray-400 transition hover:bg-red-50 hover:text-red-500 sm:self-auto"
-          >
-            <X className="h-3.5 w-3.5" />
-            Clear
-          </button>
-        )}
       </div>
 
-      <div className="table-card admin-users-table overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="table-card st-card">
         {staff.length === 0 ?
           <EmptyState
             icon={Users}
@@ -119,67 +234,78 @@ export default function StaffManage({
             description="Staff members you add will appear here."
           />
         : filteredStaff.length === 0 ?
-          <div className="empty flex flex-col items-center gap-1 py-14 text-center">
-            <h3 className="text-sm font-semibold text-gray-900">
-              No matching staff
-            </h3>
-            <p className="text-sm text-gray-500">Try a different search.</p>
-          </div>
-        : <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
+          <EmptyState
+            icon={Search}
+            title="No matching staff"
+            description="Try a different search or filter."
+          />
+        : <div className="st-scroll">
+            <table className="st-table">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50/80 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  <th className="px-5 py-3">Name</th>
-                  <th className="px-5 py-3">Email</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Action</th>
+                <tr>
+                  <th>Staff</th>
+                  <th>Email</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredStaff.map((member) => (
-                  <tr
-                    key={member.email}
-                    className="border-b border-gray-100 last:border-0 hover:bg-emerald-50/30"
-                  >
-                    <td className="px-5 py-3.5 text-sm font-medium text-gray-900">
-                      {member.name}
-                    </td>
-                    <td className="px-5 py-3.5 text-sm text-gray-600">
-                      {member.email}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <Status>
-                        {member.restricted ? "Restricted" : "Active"}
-                      </Status>
-                    </td>
-                    <td className="admin-user-actions px-5 py-3.5">
-                      <div className="admin-user-action-row flex items-center gap-4">
-                        <button
-                          className="text-btn flex items-center gap-1 text-emerald-600 hover:text-emerald-700"
-                          onClick={() => openEditor("view", member)}
-                        >
-                          <Eye size={14} /> View
-                        </button>
-                        <button
-                          className="text-btn text-gray-500 hover:text-gray-800"
-                          onClick={() => openEditor("edit", member)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className={`text-btn font-medium ${
-                            member.restricted ?
-                              "text-emerald-600 hover:text-emerald-700"
-                            : "text-red-500 hover:text-red-600"
-                          }`}
-                          onClick={() => onToggleRestriction(member)}
-                        >
-                          {member.restricted ? "Restore" : "Restrict"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {filteredStaff.map((member) => {
+                  const restricted = isRestricted(member);
+                  return (
+                    <tr key={member.id ?? member.email}>
+                      <td>
+                        <div className="st-person">
+                          <span className="st-avatar" aria-hidden="true">
+                            {initials(nameOf(member))}
+                          </span>
+                          <strong>{nameOf(member)}</strong>
+                        </div>
+                      </td>
+                      <td className="st-muted">{member.email}</td>
+                      <td>
+                        <StatusPill restricted={restricted} />
+                      </td>
+                      <td>
+                        <div className="st-actions">
+                          <button
+                            type="button"
+                            className="st-btn"
+                            onClick={() => openEditor("view", member)}
+                          >
+                            <Eye size={13} /> View
+                          </button>
+                          <button
+                            type="button"
+                            className="st-btn"
+                            onClick={() => openEditor("edit", member)}
+                          >
+                            <Pencil size={13} /> Edit
+                          </button>
+                          <button
+                            type="button"
+                            className={`st-btn ${restricted ? "st-btn-good" : "st-btn-warn"}`}
+                            onClick={() => onToggleRestriction(member)}
+                          >
+                            {restricted ?
+                              <ShieldCheck size={13} />
+                            : <ShieldOff size={13} />}
+                            {restricted ? "Restore" : "Restrict"}
+                          </button>
+                          <button
+                            type="button"
+                            className="st-icon-btn"
+                            aria-label={`Delete ${nameOf(member)}`}
+                            title="Delete"
+                            onClick={() => openDelete(member)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -188,12 +314,12 @@ export default function StaffManage({
 
       {editor && (
         <div
-          className="admin-dialog-backdrop"
+          className="admin-dialog-backdrop st-backdrop"
           role="presentation"
-          onMouseDown={() => setEditor(null)}
+          onMouseDown={closeEditor}
         >
           <section
-            className="admin-user-dialog"
+            className="admin-user-dialog st-dialog"
             role="dialog"
             aria-modal="true"
             aria-labelledby="admin-staff-dialog-title"
@@ -218,31 +344,37 @@ export default function StaffManage({
               <button
                 className="admin-dialog-close"
                 aria-label="Close"
-                onClick={() => setEditor(null)}
+                onClick={closeEditor}
               >
                 ×
               </button>
             </div>
+
             {editor.mode === "view" ?
-              <div className="admin-user-details">
-                <div>
-                  <span>Name</span>
-                  <strong>{draft.name}</strong>
+              <>
+                <div className="st-profile">
+                  <span className="st-avatar st-avatar-lg" aria-hidden="true">
+                    {initials(draft.name)}
+                  </span>
+                  <div>
+                    <strong>{draft.name}</strong>
+                    <StatusPill restricted={isRestricted(editor.member)} />
+                  </div>
                 </div>
-                <div>
-                  <span>Email</span>
-                  <strong>{draft.email}</strong>
+                <div className="admin-user-details">
+                  <div>
+                    <span>Email</span>
+                    <strong>{draft.email}</strong>
+                  </div>
+                  <div>
+                    <span>Phone</span>
+                    <strong>{draft.phone || "—"}</strong>
+                  </div>
+                  <button className="primary" onClick={closeEditor}>
+                    Close
+                  </button>
                 </div>
-                <div>
-                  <span>Status</span>
-                  <Status>
-                    {editor.member.restricted ? "Restricted" : "Active"}
-                  </Status>
-                </div>
-                <button className="primary" onClick={() => setEditor(null)}>
-                  Close
-                </button>
-              </div>
+              </>
             : <form className="admin-user-form" onSubmit={submitStaff}>
                 <label>
                   Full name
@@ -266,6 +398,17 @@ export default function StaffManage({
                     required
                   />
                 </label>
+                <label>
+                  Phone number
+                  <input
+                    name="phone"
+                    type="tel"
+                    value={draft.phone}
+                    onChange={updateDraft}
+                    autoComplete="tel"
+                    required
+                  />
+                </label>
                 {editor.mode === "create" && (
                   <label>
                     Temporary password
@@ -275,7 +418,8 @@ export default function StaffManage({
                       value={draft.password}
                       onChange={updateDraft}
                       autoComplete="new-password"
-                      minLength="6"
+                      minLength={8}
+                      maxLength={72}
                       required
                     />
                   </label>
@@ -286,15 +430,70 @@ export default function StaffManage({
                   </p>
                 )}
                 <div className="admin-dialog-actions">
-                  <button type="button" onClick={() => setEditor(null)}>
+                  <button type="button" onClick={closeEditor} disabled={saving}>
                     Cancel
                   </button>
-                  <button className="primary" type="submit">
-                    {editor.mode === "create" ? "Add staff" : "Save changes"}
+                  <button className="primary" type="submit" disabled={saving}>
+                    {saving ?
+                      "Saving..."
+                    : editor.mode === "create" ?
+                      "Add staff"
+                    : "Save changes"}
                   </button>
                 </div>
               </form>
             }
+          </section>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div
+          className="admin-dialog-backdrop st-backdrop"
+          role="presentation"
+          onMouseDown={closeDelete}
+        >
+          <section
+            className="admin-user-dialog st-dialog st-dialog-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-staff-delete-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="admin-dialog-heading">
+              <div>
+                <h2 id="admin-staff-delete-title">Delete staff</h2>
+                <p>
+                  Permanently delete <strong>{nameOf(deleteTarget)}</strong> (
+                  {deleteTarget.email})? This can't be undone.
+                </p>
+              </div>
+              <button
+                className="admin-dialog-close"
+                aria-label="Close"
+                onClick={closeDelete}
+              >
+                ×
+              </button>
+            </div>
+            {deleteError && (
+              <p className="admin-form-error" role="alert">
+                {deleteError}
+              </p>
+            )}
+            <div className="admin-dialog-actions">
+              <button type="button" onClick={closeDelete} disabled={deleting}>
+                Cancel
+              </button>
+              <button
+                className="primary st-danger"
+                type="button"
+                onClick={confirmDelete}
+                disabled={deleting}
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
           </section>
         </div>
       )}

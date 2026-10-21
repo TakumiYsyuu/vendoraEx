@@ -1,4 +1,5 @@
 import "../styles/BuyerDashboard.css";
+import "../styles/BuyerPolish.css";
 import { useState } from "react";
 import {
   Home,
@@ -185,13 +186,6 @@ function HomePage({
             : "Discover products picked for you"}
           </p>
         </div>
-        <button
-          className="text-btn"
-          onClick={() => setShowAllFeatured(!showAllFeatured)}
-        >
-          {showAllFeatured ? "Show less" : "View all"}{" "}
-          <ChevronRight size={15} />
-        </button>
       </section>
       <ProductGrid
         products={featuredProducts}
@@ -215,6 +209,15 @@ function Catalog({
   wishlistIds,
   toggleWishlist,
 }) {
+  const [sort, setSort] = useState("featured");
+
+  const sortedProducts = [...products].sort((a, b) => {
+    if (sort === "price-asc") return a.price - b.price;
+    if (sort === "price-desc") return b.price - a.price;
+    if (sort === "rating") return (b.rating || 0) - (a.rating || 0);
+    return 0; // featured = original order
+  });
+
   return (
     <div>
       <div className="page-title">
@@ -232,15 +235,20 @@ function Catalog({
             Showing {products.length} of {products.length} products
           </p>
         </div>
-        <select>
-          <option>Sort by: Featured</option>
-          <option>Price: Low to High</option>
-          <option>Rating</option>
+        <select
+          className="sort-select"
+          value={sort}
+          onChange={(e) => setSort(e.target.value)}
+        >
+          <option value="featured">Sort by: Featured</option>
+          <option value="price-asc">Price: Low to High</option>
+          <option value="price-desc">Price: High to Low</option>
+          <option value="rating">Rating</option>
         </select>
       </div>
       <div className="catalog-layout">
         <ProductGrid
-          products={products}
+          products={sortedProducts}
           openProduct={openProduct}
           add={add}
           wishlistIds={wishlistIds}
@@ -777,7 +785,14 @@ export function BuyerRoutes({
       />
     );
   if (page === "messages")
-    return <Messages user={user} target={messageTarget} />;
+    return (
+      <Messages
+        role={user.role}
+        target={messageTarget}
+        onTargetHandled={() => setMessageTarget("")}
+        onGoHome={() => go("home")}
+      />
+    );
   if (page === "account-settings")
     return <AccountSettings user={user} onUpdate={updateUser} />;
   return (

@@ -2,15 +2,27 @@ import { useMemo, useState } from "react";
 import {
   Check,
   ExternalLink,
+  Eye,
   FileText,
   Search,
   Store,
-  Eye,
   X,
 } from "lucide-react";
-import Status from "../components/Status";
+import "../styles/shopApproval.css";
 
 const TABS = ["All", "Pending", "Approved", "Declined"];
+
+const STATUS_CLASS = {
+  Pending: "sa-pending",
+  Approved: "sa-approved",
+  Declined: "sa-declined",
+};
+
+const StatusPill = ({ value }) => (
+  <span className={`sa-status ${STATUS_CLASS[value] || "sa-pending"}`}>
+    {value}
+  </span>
+);
 
 function EmptyState({ icon: Icon, title, description }) {
   return (
@@ -23,10 +35,15 @@ function EmptyState({ icon: Icon, title, description }) {
 }
 
 const isImage = (doc) =>
-  /^data:image\//.test(doc.url || "") ||
+  /^(data:image\/|blob:)/.test(doc.url || "") ||
   /\.(png|jpe?g|webp|gif)$/i.test(doc.url || "");
 
-export default function ShopApproval({ applications, onApprove, onDecline }) {
+export default function ShopApproval({
+  applications,
+  onApprove,
+  onDecline,
+  onLoadDocuments,
+}) {
   const [tab, setTab] = useState("Pending");
   const [query, setQuery] = useState("");
   const [reviewing, setReviewing] = useState(null);
@@ -35,6 +52,8 @@ export default function ShopApproval({ applications, onApprove, onDecline }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [docs, setDocs] = useState(null); // null = not loaded yet
+  const [docsLoading, setDocsLoading] = useState(false);
 
   const counts = useMemo(
     () =>
@@ -66,11 +85,21 @@ export default function ShopApproval({ applications, onApprove, onDecline }) {
     window.setTimeout(() => setNotice(""), 3200);
   };
 
-  const openReview = (application) => {
+  const openReview = async (application) => {
     setReviewing(application);
     setDeclining(false);
     setReason("");
     setError("");
+    setDocs(null);
+    if (!onLoadDocuments) return;
+    setDocsLoading(true);
+    try {
+      setDocs(await onLoadDocuments(application));
+    } catch (err) {
+      setError(err.message || "Couldn't load the documents.");
+    } finally {
+      setDocsLoading(false);
+    }
   };
 
   const closeReview = () => {
@@ -78,6 +107,7 @@ export default function ShopApproval({ applications, onApprove, onDecline }) {
     setDeclining(false);
     setReason("");
     setError("");
+    setDocs(null);
   };
 
   const approve = async () => {
@@ -110,6 +140,7 @@ export default function ShopApproval({ applications, onApprove, onDecline }) {
   };
 
   const isPending = reviewing?.status === "Pending";
+  const shownDocs = docs ?? reviewing?.documents ?? [];
 
   return (
     <div className="admin-page">
@@ -120,37 +151,40 @@ export default function ShopApproval({ applications, onApprove, onDecline }) {
         </div>
       </div>
 
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-1.5">
+      <div className="sa-toolbar">
+        <div
+          className="sa-tabs"
+          role="tablist"
+          aria-label="Filter applications"
+        >
           {TABS.map((name) => (
             <button
               key={name}
               type="button"
+              role="tab"
+              aria-selected={tab === name}
+              className={`sa-tab ${tab === name ? "on" : ""}`}
               onClick={() => setTab(name)}
-              className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
-                tab === name ?
-                  "border-emerald-300 bg-emerald-50 text-emerald-700"
-                : "border-gray-200 bg-white text-gray-600 hover:border-emerald-300 hover:bg-emerald-50/50"
-              }`}
             >
-              {name} ({counts[name]})
+              {name}
+              <span className="sa-count">{counts[name]}</span>
             </button>
           ))}
         </div>
 
-        <label className="flex w-full max-w-sm items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm transition focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-100">
-          <Search className="h-4 w-4 shrink-0 text-gray-400" />
+        <label className="sa-search">
+          <Search size={15} aria-hidden="true" />
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search shop, owner or email"
-            className="w-full border-none bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+            aria-label="Search applications"
           />
         </label>
       </div>
 
-      <div className="table-card overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="table-card sa-card">
         {applications.length === 0 ?
           <EmptyState
             icon={Store}
@@ -163,54 +197,60 @@ export default function ShopApproval({ applications, onApprove, onDecline }) {
             title="Nothing to show"
             description="No applications match this tab or search."
           />
-        : <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
+        : <div className="sa-scroll">
+            <table className="sa-table">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50/80 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  <th className="px-5 py-3">Shop</th>
-                  <th className="px-5 py-3">Owner</th>
-                  <th className="px-5 py-3">Submitted</th>
-                  <th className="px-5 py-3">Documents</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Action</th>
+                <tr>
+                  <th>Shop</th>
+                  <th>Owner</th>
+                  <th>Submitted</th>
+                  <th>Documents</th>
+                  <th>Status</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {visible.map((application) => (
-                  <tr
-                    key={application.id}
-                    className="border-b border-gray-100 last:border-0 hover:bg-emerald-50/30"
-                  >
-                    <td className="px-5 py-3.5 text-sm font-medium text-gray-900">
-                      {application.shopName}
-                    </td>
-                    <td className="px-5 py-3.5 text-sm text-gray-600">
-                      <div>{application.ownerName}</div>
-                      <div className="text-xs text-gray-400">
-                        {application.email}
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5 text-sm text-gray-600">
-                      {application.submittedAt}
-                    </td>
-                    <td className="px-5 py-3.5 text-sm text-gray-600">
-                      {application.documents?.length || 0} file
-                      {application.documents?.length === 1 ? "" : "s"}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <Status>{application.status}</Status>
-                    </td>
-                    <td className="admin-user-actions px-5 py-3.5">
-                      <button
-                        className="text-btn flex items-center gap-1 text-emerald-600 hover:text-emerald-700"
-                        onClick={() => openReview(application)}
-                      >
-                        <Eye size={14} />
-                        {application.status === "Pending" ? "Review" : "View"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {visible.map((application) => {
+                  const fileCount = application.documents?.length || 0;
+                  return (
+                    <tr key={application.id}>
+                      <td>
+                        <div className="sa-shop">
+                          <span className="sa-shop-icon" aria-hidden="true">
+                            <Store size={15} />
+                          </span>
+                          <strong>{application.shopName}</strong>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="sa-owner">
+                          <span>{application.ownerName}</span>
+                          <small>{application.email}</small>
+                        </div>
+                      </td>
+                      <td className="sa-date">{application.submittedAt}</td>
+                      <td>
+                        <span className="sa-docs">
+                          <FileText size={12} />
+                          {fileCount} file{fileCount === 1 ? "" : "s"}
+                        </span>
+                      </td>
+                      <td>
+                        <StatusPill value={application.status} />
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className={`sa-review ${application.status === "Pending" ? "" : "quiet"}`}
+                          onClick={() => openReview(application)}
+                        >
+                          <Eye size={13} />
+                          {application.status === "Pending" ? "Review" : "View"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -225,17 +265,16 @@ export default function ShopApproval({ applications, onApprove, onDecline }) {
 
       {reviewing && (
         <div
-          className="admin-dialog-backdrop"
+          className="admin-dialog-backdrop sa-backdrop"
           role="presentation"
           onMouseDown={closeReview}
         >
           <section
-            className="admin-user-dialog admin-product-dialog"
+            className="admin-user-dialog sa-dialog"
             role="dialog"
             aria-modal="true"
             aria-labelledby="shop-approval-title"
             onMouseDown={(event) => event.stopPropagation()}
-            style={{ maxHeight: "90vh", overflowY: "auto" }}
           >
             <div className="admin-dialog-heading">
               <div>
@@ -270,7 +309,7 @@ export default function ShopApproval({ applications, onApprove, onDecline }) {
               </div>
               <div>
                 <span>Status</span>
-                <Status>{reviewing.status}</Status>
+                <StatusPill value={reviewing.status} />
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <span>Business address</span>
@@ -284,71 +323,66 @@ export default function ShopApproval({ applications, onApprove, onDecline }) {
               </div>
             </div>
 
-            <h3 className="mb-2 mt-5 text-sm font-semibold text-gray-900">
-              Submitted requirements
-            </h3>
-            {reviewing.documents?.length ?
-              <ul className="grid gap-2">
-                {reviewing.documents.map((doc) => (
-                  <li
-                    key={doc.label}
-                    className="flex items-center gap-3 rounded-lg border border-gray-200 p-2.5"
-                  >
+            <h3 className="sa-section-title">Submitted requirements</h3>
+            {docsLoading ?
+              <p className="sa-muted">Loading documents…</p>
+            : shownDocs.length ?
+              <div className="sa-doc-grid">
+                {shownDocs.map((doc) => (
+                  <figure key={doc.label} className="sa-doc">
                     {isImage(doc) ?
-                      <img
-                        src={doc.url}
-                        alt={doc.label}
-                        className="h-12 w-12 shrink-0 rounded-md border border-gray-100 object-cover"
-                      />
-                    : <span className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-gray-100 text-gray-400">
-                        <FileText size={20} />
-                      </span>
-                    }
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800">
-                      {doc.label}
-                    </span>
-                    {doc.url && (
                       <a
                         href={doc.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+                        className="sa-doc-img"
+                        aria-label={`Open ${doc.label} in a new tab`}
                       >
-                        Open <ExternalLink size={12} />
+                        <img src={doc.url} alt={doc.label} />
                       </a>
-                    )}
-                  </li>
+                    : <div className="sa-doc-img sa-doc-empty">
+                        <FileText size={26} />
+                      </div>
+                    }
+                    <figcaption className="sa-doc-foot">
+                      <span>{doc.label}</span>
+                      {doc.url && (
+                        <a href={doc.url} target="_blank" rel="noreferrer">
+                          Open <ExternalLink size={11} />
+                        </a>
+                      )}
+                    </figcaption>
+                  </figure>
                 ))}
-              </ul>
-            : <p className="text-sm text-gray-500">
+              </div>
+            : <p className="sa-muted">
                 This seller has not uploaded any documents.
               </p>
             }
 
             {reviewing.status === "Declined" && reviewing.declineReason && (
-              <div className="mt-5 rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-700">
-                <strong className="block text-xs">Reason for declining</strong>
+              <div className="sa-reason">
+                <strong>Reason for declining</strong>
                 {reviewing.declineReason}
               </div>
             )}
 
             {error && (
-              <p className="admin-form-error mt-4" role="alert">
+              <p className="admin-form-error sa-error" role="alert">
                 {error}
               </p>
             )}
 
             {isPending && !declining && (
-              <div className="admin-dialog-actions" style={{ marginTop: 20 }}>
+              <div className="admin-dialog-actions sa-actions">
                 <button
                   type="button"
+                  className="sa-decline-btn"
                   disabled={busy}
                   onClick={() => {
                     setDeclining(true);
                     setError("");
                   }}
-                  className="flex items-center gap-1"
-                  style={{ color: "#cf5260", borderColor: "#f3c9cf" }}
                 >
                   <X size={14} /> Decline
                 </button>
@@ -364,18 +398,16 @@ export default function ShopApproval({ applications, onApprove, onDecline }) {
             )}
 
             {isPending && declining && (
-              <form onSubmit={decline} className="mt-5">
-                <label className="grid gap-1.5 text-xs font-bold text-gray-600">
-                  Reason for declining
-                  <textarea
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder="Example: The business permit is expired. Upload a valid copy and apply again."
-                    rows={3}
-                    className="w-full rounded-lg border border-gray-200 p-2.5 text-sm font-normal text-gray-800 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                  />
-                </label>
-                <div className="admin-dialog-actions" style={{ marginTop: 12 }}>
+              <form onSubmit={decline} className="sa-decline-form">
+                <label htmlFor="sa-reason-input">Reason for declining</label>
+                <textarea
+                  id="sa-reason-input"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Example: The ID photo is blurry. Upload a clear copy and apply again."
+                  rows={3}
+                />
+                <div className="admin-dialog-actions">
                   <button
                     type="button"
                     disabled={busy}
@@ -389,8 +421,7 @@ export default function ShopApproval({ applications, onApprove, onDecline }) {
                   <button
                     type="submit"
                     disabled={busy}
-                    className="primary"
-                    style={{ background: "#d94b58" }}
+                    className="primary sa-danger"
                   >
                     Decline application
                   </button>
@@ -399,7 +430,7 @@ export default function ShopApproval({ applications, onApprove, onDecline }) {
             )}
 
             {!isPending && (
-              <div className="admin-dialog-actions" style={{ marginTop: 20 }}>
+              <div className="admin-dialog-actions sa-actions">
                 <button className="primary" type="button" onClick={closeReview}>
                   Close
                 </button>

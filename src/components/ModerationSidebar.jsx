@@ -9,10 +9,11 @@ import {
   Store,
   UserGroupIcon,
   Users,
-  Users2,
-  Users2Icon,
   X,
   FileUser,
+  Flag,
+  MessageSquare,
+  Truck,
 } from "lucide-react";
 import { initials } from "../utils/helpers";
 
@@ -27,12 +28,9 @@ const adminNavigation = [
 
 const staffNavigation = [
   ["staff-dashboard", "Dashboard", LayoutDashboard],
-  ["users", "Users", Users],
-  ["shops-products", "Shops & Products", Store],
-  ["orders", "Orders", ShoppingBag],
-  ["reports-analytics", "Reports & Analytics", BarChart3],
-  ["system-security", "System & Security", Shield],
-  ["settings", "Settings", Settings],
+  ["staff-reports", "Reports", Flag],
+  ["staff-messages", "Messages", MessageSquare],
+  ["staff-delivery", "Delivery", Truck],
 ];
 
 export default function ModerationSidebar({

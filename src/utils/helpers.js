@@ -5,7 +5,6 @@ export function money(value) {
   return `₱${safeAmount.toLocaleString("en-PH")}`;
 }
 
-// Returns up to two initials without failing when profile data is incomplete.
 export function initials(name) {
   return String(name || "")
     .trim()
@@ -17,7 +16,6 @@ export function initials(name) {
     .toUpperCase();
 }
 
-// Normalizes order IDs before comparing records from buyer and seller data sources.
 export function sameOrderId(left, right) {
   const normalizeOrderId = (value) =>
     String(value || "")

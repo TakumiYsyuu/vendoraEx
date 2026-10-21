@@ -1,7 +1,7 @@
 import { getSellers } from "./moderation";
-import { getStorefrontProducts } from "./products";
+import { fetchStorefrontProducts } from "./products";
 
-const VITE_URL = import.meta.env.VITE_URLL || "http://localhost:5000/api";
+const VITE_URL = import.meta.env.VITE_URL || "http://localhost:5000/api";
 
 function authHeaders() {
   const token = localStorage.getItem("vendora_token");
@@ -16,14 +16,19 @@ function toDisplayUser(row) {
     id: row.id,
     name: row.fullname,
     email: row.email,
+    phone: row.phone_num,
     type: row.role === "seller" ? "Seller" : "Buyer",
-    restricted: !row.is_active,
+    restricted: !!row.is_restricted,
+    restrictionReason: row.restriction_reason,
+    restrictionStart: row.restriction_start,
+    restrictionEnd: row.restriction_end,
   };
 }
 
 export async function getAdminUsers() {
   try {
     const response = await fetch(`${VITE_URL}/admin/users`, {
+      cache: "no-store",
       headers: authHeaders(),
     });
     const data = await response.json();
@@ -38,6 +43,7 @@ export async function getAdminUsers() {
 export async function saveAdminUser({
   name,
   email,
+  phone,
   accountType,
   password,
   existingEmail,
@@ -59,7 +65,7 @@ export async function saveAdminUser({
     const response = await fetch(`${VITE_URL}/admin/users`, {
       method: "POST",
       headers: authHeaders(),
-      body: JSON.stringify({ fullname: name, email, password, role }),
+      body: JSON.stringify({ fullname: name, email, phone, password, role }),
     });
     const data = await response.json();
     if (!response.ok)
@@ -71,15 +77,22 @@ export async function saveAdminUser({
   }
 }
 
-export async function setUserRestriction(id, restricted) {
+// restricted = true  -> details: { reason, startDate, endDate }
+// restricted = false -> lifts the restriction
+export async function setUserRestriction(id, restricted, details = {}) {
   try {
-    await fetch(`${VITE_URL}/admin/users/${id}/restriction`, {
+    const response = await fetch(`${VITE_URL}/admin/users/${id}/restriction`, {
       method: "PATCH",
       headers: authHeaders(),
-      body: JSON.stringify({ restricted }),
+      body: JSON.stringify({ restricted, ...details }),
     });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok)
+      return { error: data.message || "Could not update restriction." };
+    return { success: true };
   } catch (err) {
     console.error("setUserRestriction failed:", err);
+    return { error: "Could not reach the server." };
   }
 }
 
@@ -143,15 +156,19 @@ export function getAdminOrders() {
     );
 }
 
-// Admin reviews only listings saved by seller accounts, never the buyer demo catalogue.
-export function getAdminProducts() {
-  return getStorefrontProducts();
+export async function getAdminProducts() {
+  try {
+    return await fetchStorefrontProducts();
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
 }
 
 // Produces analytics directly from the marketplace records currently saved in local storage.
-export function getAdminAnalytics(reports) {
+// Pass the users list in (from getAdminUsers) because that call is async.
+export function getAdminAnalytics(reports, users = []) {
   const orders = getAdminOrders();
-  const users = getAdminUsers();
   const currentYear = new Date().getFullYear();
   const monthlyOrders = Array.from({ length: 12 }, (_, month) => ({
     label: new Date(currentYear, month, 1).toLocaleDateString("en-US", {
@@ -185,15 +202,15 @@ export function getAdminAnalytics(reports) {
   };
 }
 
+// totalUsers is filled in by AdminModeration from the loaded users list
 export function getAdminStats(reports) {
-  const users = getAdminUsers();
   const sellers = getSellers();
   const orders = getAdminOrders();
   const pendingReviews = reports.filter((report) =>
     ["Pending", "Submitted to Admin"].includes(report.status),
   );
   return {
-    totalUsers: users.length,
+    totalUsers: 0,
     activeSellers: sellers.filter(
       (seller) =>
         localStorage.getItem(`vendora-banned-${seller.email}`) !== "true",

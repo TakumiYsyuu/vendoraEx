@@ -24,7 +24,10 @@ export async function loginAccount({ email, password }) {
     const data = await response.json();
 
     if (!response.ok) {
-      return { error: data.message || "Login failed. Please try again." };
+      return {
+        error: data.message || "Login failed. Please try again.",
+        restriction: data.restriction,
+      };
     }
 
     if (data.otpRequired) {
