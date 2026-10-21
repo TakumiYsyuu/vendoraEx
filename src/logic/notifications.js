@@ -1,8 +1,8 @@
-const API = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(
+const BASE = (import.meta.env.VITE_URL || "http://localhost:5000").replace(
   /\/+$/,
   "",
 );
-const BASE = `${API}/api/notifications`;
+const NOTIFICATIONS = `${BASE}/api/notifications`;
 
 async function request(url, options) {
   const res = await fetch(url, {
@@ -13,19 +13,20 @@ async function request(url, options) {
   return res.json();
 }
 
-export const getNotifications = (userId) => request(`${BASE}?userId=${userId}`);
+export const getNotifications = (userId) =>
+  request(`${NOTIFICATIONS}?userId=${userId}`);
 
 export const markNotificationRead = (id) =>
-  request(`${BASE}/${id}/read`, { method: "PATCH" });
+  request(`${NOTIFICATIONS}/${id}/read`, { method: "PATCH" });
 
 export const markAllNotificationsRead = (userId) =>
-  request(`${BASE}/read-all`, {
+  request(`${NOTIFICATIONS}/read-all`, {
     method: "PATCH",
     body: JSON.stringify({ userId }),
   });
 
 export const deleteNotification = (id) =>
-  request(`${BASE}/${id}`, { method: "DELETE" });
+  request(`${NOTIFICATIONS}/${id}`, { method: "DELETE" });
 
 export const deleteReadNotifications = (userId) =>
-  request(`${BASE}/read?userId=${userId}`, { method: "DELETE" });
+  request(`${NOTIFICATIONS}/read?userId=${userId}`, { method: "DELETE" });
