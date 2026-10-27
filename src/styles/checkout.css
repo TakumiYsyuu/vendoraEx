@@ -1,0 +1,413 @@
+/* Self-contained styles for the buyer Checkout page (all co- prefixed) */
+.co-page {
+  --co-accent: #0fa573;
+  --co-accent-soft: #e3f6ee;
+  --co-text: #0f1d2e;
+  --co-muted: #6b7a8c;
+  --co-border: #e1e7ee;
+  --co-surface: #ffffff;
+  --co-danger: #dc2626;
+  color: var(--co-text);
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 8px 4px 40px;
+  box-sizing: border-box;
+}
+
+.co-page *,
+.co-page *::before,
+.co-page *::after {
+  box-sizing: border-box;
+}
+
+.co-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--co-muted);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.co-back:hover {
+  color: var(--co-text);
+}
+
+.co-head {
+  margin: 8px 0 18px;
+}
+
+.co-head h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.co-head p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--co-muted);
+}
+
+/* Stepper */
+.co-steps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.co-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--co-muted);
+}
+
+.co-step b {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #eef2f6;
+  font-size: 12px;
+}
+
+.co-step.done b,
+.co-step.on b {
+  background: var(--co-accent);
+  color: #fff;
+}
+
+.co-step.on,
+.co-step.done {
+  color: var(--co-text);
+}
+
+.co-step-line {
+  width: 36px;
+  height: 2px;
+  background: var(--co-border);
+  border-radius: 2px;
+}
+
+/* Layout */
+.co-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  align-items: start;
+}
+
+.co-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.co-card {
+  background: var(--co-surface);
+  border: 1px solid var(--co-border);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.co-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.co-card h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.co-link {
+  border: 0;
+  background: transparent;
+  color: var(--co-accent);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.co-link:hover {
+  text-decoration: underline;
+}
+
+/* Address */
+.co-address {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.co-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--co-accent-soft);
+  color: var(--co-accent);
+}
+
+.co-address strong {
+  display: block;
+  font-size: 15px;
+}
+
+.co-address p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--co-muted);
+}
+
+.co-address .missing {
+  color: var(--co-danger);
+}
+
+/* Option rows (delivery + payment) */
+.co-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1.5px solid var(--co-accent);
+  background: var(--co-accent-soft);
+  border-radius: 12px;
+}
+
+.co-option + .co-option {
+  margin-top: 10px;
+}
+
+.co-option .co-icon {
+  background: #fff;
+}
+
+.co-option-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.co-option-text strong {
+  display: block;
+  font-size: 14.5px;
+}
+
+.co-option-text small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--co-muted);
+}
+
+.co-option-price {
+  font-size: 14.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.co-check {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--co-accent);
+  color: #fff;
+}
+
+.co-note {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--co-muted);
+  line-height: 1.45;
+}
+
+/* Summary */
+.co-summary {
+  position: sticky;
+  top: 16px;
+  background: var(--co-surface);
+  border: 1px solid var(--co-border);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.co-summary h2 {
+  margin: 0 0 14px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.co-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.co-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.co-thumb {
+  position: relative;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #eef2f6;
+}
+
+.co-thumb .product-art {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: 0;
+}
+
+.co-qty {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(15, 29, 46, 0.85);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+
+.co-item-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.co-item-text strong {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.co-item-text small {
+  font-size: 12px;
+  color: var(--co-muted);
+}
+
+.co-item-total {
+  font-size: 13.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.co-rows {
+  margin: 16px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--co-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.co-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--co-muted);
+}
+
+.co-row b {
+  color: var(--co-text);
+  font-weight: 600;
+}
+
+.co-row.total {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--co-border);
+  font-size: 17px;
+  color: var(--co-text);
+}
+
+.co-row.total b {
+  font-weight: 800;
+}
+
+.co-warn {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fdeaea;
+  color: var(--co-danger);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.co-place {
+  width: 100%;
+  margin-top: 16px;
+  height: 46px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--co-accent);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.co-place:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+.co-place:disabled {
+  background: #b9c5d1;
+  cursor: not-allowed;
+}
+
+@media (max-width: 860px) {
+  .co-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .co-summary {
+    position: static;
+  }
+}

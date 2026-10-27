@@ -1,5 +1,5 @@
-import { getSellers } from "./moderation";
 import { fetchStorefrontProducts } from "./products";
+import { submitReport } from "./message";
 
 const VITE_URL = import.meta.env.VITE_URL || "http://localhost:5000/api";
 
@@ -77,8 +77,6 @@ export async function saveAdminUser({
   }
 }
 
-// restricted = true  -> details: { reason, startDate, endDate }
-// restricted = false -> lifts the restriction
 export async function setUserRestriction(id, restricted, details = {}) {
   try {
     const response = await fetch(`${VITE_URL}/admin/users/${id}/restriction`, {
@@ -104,6 +102,20 @@ function readList(key) {
     // A backend version would return a recoverable data error here.
   }
   return [];
+}
+
+export function getSellers() {
+  return Object.keys(localStorage)
+    .filter((key) => key.startsWith("vendora-products-"))
+    .map((key) => {
+      const email = key.replace("vendora-products-", "");
+      const products = readList(key);
+      return {
+        email,
+        name: products[0]?.seller || email,
+        verified: localStorage.getItem(`vendora-verified-${email}`) === "true",
+      };
+    });
 }
 
 const defaultAdminSettings = {
@@ -165,8 +177,6 @@ export async function getAdminProducts() {
   }
 }
 
-// Produces analytics directly from the marketplace records currently saved in local storage.
-// Pass the users list in (from getAdminUsers) because that call is async.
 export function getAdminAnalytics(reports, users = []) {
   const orders = getAdminOrders();
   const currentYear = new Date().getFullYear();
@@ -202,7 +212,6 @@ export function getAdminAnalytics(reports, users = []) {
   };
 }
 
-// totalUsers is filled in by AdminModeration from the loaded users list
 export function getAdminStats(reports) {
   const sellers = getSellers();
   const orders = getAdminOrders();
@@ -277,3 +286,56 @@ export function setStaffRestriction(email, restricted) {
   if (restricted) localStorage.setItem(key, "true");
   else localStorage.removeItem(key);
 }
+
+export async function fetchReports(filters = {}) {
+  const qs = new URLSearchParams(filters).toString();
+  const response = await fetch(`${VITE_URL}/reports${qs ? "?" + qs : ""}`, {
+    cache: "no-store",
+    headers: authHeaders(),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || "Could not load reports.");
+  return data.reports;
+}
+
+export async function updateReportStatus(id, status) {
+  const response = await fetch(`${VITE_URL}/reports/${id}`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify({ status }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok)
+    throw new Error(data.message || "Could not update the report.");
+  return data;
+}
+
+export async function submitProductReport({ product, reason, details }) {
+  const sellerEmail = String(product.sellerEmail || "").trim();
+  const validEmail = /^\S+@\S+\.\S+$/.test(sellerEmail) ? sellerEmail : "";
+
+  return submitReport({
+    reportedName: product.seller || "Unknown seller",
+    reportedEmail: validEmail,
+    orderId: "",
+    subject: `Product: ${product.name} (${reason})`.slice(0, 100),
+    details: `Reason: ${reason}. ${details || ""}`.trim().slice(0, 1500),
+  });
+}
+
+async function reportAction(path, body = {}) {
+  const response = await fetch(`${VITE_URL}/reports/${path}`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || "Request failed.");
+  return data;
+}
+
+export const claimReport = (id) => reportAction(`${id}/claim`);
+export const submitFinalReport = (id, outcome, summary) =>
+  reportAction(`${id}/final`, { outcome, summary });
+export const decideReport = (id, decision) =>
+  reportAction(`${id}/decision`, { decision });

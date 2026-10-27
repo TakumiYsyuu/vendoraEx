@@ -13,8 +13,11 @@ import notificationsRouter from "./notifications.js";
 import shopRoutes from "./routes/shopRoutes.js";
 import wishlistRoutes from "./routes/wishlistRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
+import orderRoutes from "./routes/orderRoutes.js";
+import cartRoutes from "./routes/cartRoutes.js";
 
 import aiRoutes from "./routes/aiRoutes.js";
+import reportRoutes from "./routes/reportRoutes.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -40,9 +43,11 @@ app.use("/api/notifications", notificationsRouter);
 app.use("/api/products", productRoutes);
 app.use("/api/shop", shopRoutes);
 app.use("/api/wishlist", wishlistRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/cart", cartRoutes);
 
 app.use("/api/messages", messageRoutes);
-
+app.use("/api/reports", reportRoutes);
 app.use("/api/ai", aiRoutes);
 
 app.get("/", (req, res) => {

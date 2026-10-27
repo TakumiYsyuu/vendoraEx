@@ -1,13 +1,15 @@
 import "../env.js";
+import db from "../config/db.js";
 import Groq from "groq-sdk";
 import { saveReport } from "./reportController.js";
 
 const ALLOWED_ROLES = ["shopper", "seller"];
+const DONE_MARKER = "Your report is now waiting for our staff to review.";
 
 const SYSTEM_PROMPT = `You are Vendora Assistant, the support helper in the Vendora marketplace app for buyers and sellers.
 
 Language: Always reply in English, even if the user writes in another language.
-Style: Friendly and polite. Plain text only, no markdown, asterisks or headings. Keep every reply to 1-3 short sentences. Ask only one question at a time.
+Style: Friendly and polite. Plain text only, no markdown, asterisks or headings. Usually reply in 2-4 sentences. When explaining how to do something in Vendora, give short steps on separate lines, like "1. ...". Ask only one question at a time.
 
 You help with two things:
 1. Reports about orders, payments, delivery, products, accounts, or other users and stores.
@@ -19,7 +21,9 @@ When someone wants to report a concern, collect these details one at a time. Ski
 - Order ID (optional, only if it is about an order)
 - What happened and when (required)
 
-As soon as you have the name and what happened, call the submit_report tool. Do not ask for confirmation and do not ask more questions after that. If the user does not know the email or order ID, submit without them. Call the tool only once per report, and never for general questions.
+Never make up or guess any detail. Use only what the user actually told you. A name alone is NOT enough: before you call submit_report, you must have asked "What happened and when?" and received the user's own answer. Never add dates, products, prices or events the user did not say.
+
+As soon as you have the name and the user's own description of what happened, call the submit_report tool. Do not ask for confirmation and do not ask more questions after that. If the user does not know the email or order ID, submit without them. Call the tool only once per report, and never for general questions.
 
 Rules:
 - Never say you refunded, banned, cancelled, or changed anything. Only staff can do that.
@@ -54,20 +58,30 @@ const REPORT_TOOL = {
         },
         details: {
           type: "string",
-          description: "What happened and when, based on what the user said",
+          description:
+            "What happened, using only facts the user stated. Never invent dates, products or events.",
+        },
+        user_words: {
+          type: "string",
+          description:
+            "The user's own message that describes what happened, copied word for word. Never write this yourself.",
         },
         summary: {
           type: "string",
           description: "Clear summary of the report in 4 lines or fewer",
         },
       },
-      required: ["reported_name", "subject", "details", "summary"],
+      required: [
+        "reported_name",
+        "subject",
+        "details",
+        "summary",
+        "user_words",
+      ],
     },
   },
 };
 
-// Turns a Groq/network error into a clear message for the user.
-// The real error is always printed in the server terminal.
 function describeAiError(err) {
   const status = err?.status;
   const detail = String(
@@ -99,7 +113,6 @@ function describeAiError(err) {
     };
   }
 
-  // Groq servers overloaded or down
   if (status >= 500) {
     return {
       status: 503,
@@ -108,7 +121,6 @@ function describeAiError(err) {
     };
   }
 
-  // Could not reach Groq at all (no internet, DNS, timeout)
   if (
     err?.name === "APIConnectionError" ||
     err?.name === "APIConnectionTimeoutError" ||
@@ -121,8 +133,6 @@ function describeAiError(err) {
     };
   }
 
-  // Setup problems (wrong key, retired model). These are for the developer,
-  // so users get a generic message and the terminal shows the real reason.
   if (status === 401 || status === 403) {
     console.error("AI setup problem: the Groq API key is missing or invalid.");
   } else if (status === 404 || detail.includes("decommissioned")) {
@@ -156,14 +166,21 @@ export async function chatWithAssistant(req, res) {
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
     const history = Array.isArray(req.body.messages) ? req.body.messages : [];
-    const messages = history
+    let messages = history
       .filter(
         (m) =>
           ["user", "assistant"].includes(m.role) &&
           typeof m.content === "string",
       )
-      .slice(-6)
+      .slice(-16)
       .map((m) => ({ role: m.role, content: m.content.slice(0, 2000) }));
+
+    // A report was already saved earlier in this chat: forget everything
+    // up to that point so the AI can't submit the same report again.
+    const lastDone = messages.findLastIndex(
+      (m) => m.role === "assistant" && m.content.includes(DONE_MARKER),
+    );
+    if (lastDone !== -1) messages = messages.slice(lastDone + 1);
 
     if (!messages.length)
       return res.status(400).json({ message: "Message is required." });
@@ -171,8 +188,8 @@ export async function chatWithAssistant(req, res) {
     const completion = await groq.chat.completions.create({
       model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
       messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
-      temperature: 0.5,
-      max_tokens: 600,
+      temperature: 0.3,
+      max_tokens: 1000,
       reasoning_effort: "low",
       tools: [REPORT_TOOL],
       tool_choice: "auto",
@@ -199,12 +216,55 @@ export async function chatWithAssistant(req, res) {
         });
       }
 
+      // Guard: the report must be based on what the user really said.
+      // 1) user_words must be copied from a user message
+      // 2) numbers/dates in the report must also appear in the user's messages
+      const norm = (t) =>
+        String(t || "")
+          .toLowerCase()
+          .replace(/\s+/g, " ")
+          .trim();
+      const userTexts = messages
+        .filter((m) => m.role === "user")
+        .map((m) => norm(m.content));
+      const quote = norm(args.user_words);
+      const grounded =
+        quote.length >= 15 && userTexts.some((t) => t.includes(quote));
+      const userBlob = userTexts.join(" ");
+      const madeUpNumber = (
+        `${args.subject} ${args.details} ${args.summary}`.match(/\d{2,}/g) || []
+      ).some((n) => !userBlob.includes(n));
+
+      if (!grounded || madeUpNumber) {
+        return res.json({
+          reply:
+            "Before I file this, could you tell me what happened and when, in your own words?",
+        });
+      }
+
       try {
+        const email = String(args.reported_email || "").trim();
+        const validEmail = /^\S+@\S+\.\S+$/.test(email) ? email : "";
+
+        const [dupes] = await db.query(
+          `SELECT id FROM reports
+            WHERE reporter_id = ? AND source = 'ai' AND subject = ?
+              AND created_at > NOW() - INTERVAL 10 MINUTE
+            LIMIT 1`,
+          [req.user.userId, String(args.subject).trim().slice(0, 100)],
+        );
+        if (dupes.length) {
+          return res.json({
+            reply:
+              "Your report is already with our staff. Is there anything else I can help with?",
+          });
+        }
+
         const reportId = await saveReport({
           user: req.user,
           source: "ai",
           reportedName: args.reported_name,
-          reportedEmail: args.reported_email,
+          reportedEmail: validEmail,
           orderId: args.order_id,
           subject: args.subject,
           details: args.details,
@@ -215,7 +275,7 @@ export async function chatWithAssistant(req, res) {
           reportId,
           reply:
             (summary ? `Here is your report:\n${summary}\n\n` : "") +
-            "Thank you. Your report is now waiting for our staff to review.",
+            DONE_MARKER.replace(/^/, "Thank you. "),
         });
       } catch (saveErr) {
         console.error("Report save error:", saveErr);

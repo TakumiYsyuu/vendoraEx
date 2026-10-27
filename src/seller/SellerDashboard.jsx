@@ -4,7 +4,6 @@ import {
   Home,
   Package,
   ShoppingCart,
-  BarChart3,
   MessageCircle,
   Settings,
   LogOut,
@@ -13,23 +12,13 @@ import {
 import ProductArt from "../components/ProductArt";
 import Status from "../components/Status";
 import Messages from "../components/Messages";
-import { money, initials, sameOrderId } from "../utils/helpers";
-import { syncBuyerOrderStatus } from "../logic/orders";
+import { initials } from "../utils/helpers";
+import { fetchSellerOrders, money } from "../logic/orders";
 import Stat from "./Stat";
 import SellerProducts from "./SellerProducts";
-import Analytics from "./Analytics";
+import SellerOrders from "./SellerOrders";
 import AddProduct from "./AddProduct";
 import ShopSettings from "./ShopSettings";
-
-const ORDER_FILTERS = [
-  "All",
-  "Pending",
-  "Processing",
-  "Shipped",
-  "Delivered",
-  "Cancelled",
-];
-const ORDER_STATUSES = ORDER_FILTERS.slice(1);
 
 const readList = (key) => {
   try {
@@ -52,7 +41,6 @@ export function SellerSidebar({
     [Home, "Dashboard", "seller-dashboard"],
     [Package, "My Products", "products"],
     [ShoppingCart, "Orders", "seller-orders"],
-    [BarChart3, "Analytics", "analytics"],
     [MessageCircle, "Messages", "messages"],
     [Settings, "Shop Settings", "settings"],
   ];
@@ -110,69 +98,57 @@ function DashboardHeader({ title, subtitle }) {
   );
 }
 
-// ---------- OrdersTable ----------
-function OrdersTable({ orders, compact = false, onStatusChange }) {
-  const rows = compact ? orders.slice(0, 5) : orders;
+// ---------- Recent orders (dashboard preview, read-only) ----------
+function RecentOrdersTable({ orders }) {
   return (
-    <table>
-      <thead>
-        <tr>
-          <th>Order #</th>
-          <th>Customer</th>
-          <th>Total</th>
-          <th>Status</th>
-          {!compact && <th></th>}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((o) => (
-          <tr key={o.id}>
-            <td>
-              <b>{o.id}</b>
-            </td>
-            <td>{o.customer}</td>
-            <td>{money(o.total)}</td>
-            <td>
-              {onStatusChange ?
-                <select
-                  className="status-select"
-                  value={o.status}
-                  onChange={(e) => onStatusChange(o.id, e.target.value)}
-                >
-                  {ORDER_STATUSES.map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </select>
-              : <Status>{o.status}</Status>}
-            </td>
-            {!compact && (
-              <td className="cell-action">
-                <button
-                  className="outline small"
-                  onClick={() =>
-                    window.dispatchEvent(
-                      new CustomEvent("view-order", { detail: o }),
-                    )
-                  }
-                >
-                  View
-                </button>
-              </td>
-            )}
+    <div className="recent-orders-wrap">
+      <table className="recent-orders">
+        <thead>
+          <tr>
+            <th>Order #</th>
+            <th>Customer</th>
+            <th>Total</th>
+            <th>Status</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {orders.slice(0, 5).map((o) => (
+            <tr key={o.id}>
+              <td>
+                <b>{o.code}</b>
+              </td>
+              <td>{o.buyerName}</td>
+              <td>{money(o.total)}</td>
+              <td>
+                <span className="status-cell">
+                  <Status>{o.status}</Status>
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
 // ---------- SellerDashboard ----------
 function SellerDashboard({ user, go }) {
-  const sellerOrders = readList(`vendora-seller-orders-${user.email}`);
+  const [sellerOrders, setSellerOrders] = useState([]);
   const sellerProducts = readList(`vendora-products-${user.email}`);
+
+  useEffect(() => {
+    fetchSellerOrders()
+      .then(setSellerOrders)
+      .catch((err) => console.error("Failed to load seller orders:", err));
+  }, []);
+
   const pendingCount = sellerOrders.filter(
-    (order) => order.status === "Processing" || order.status === "Pending",
+    (order) => order.status === "Pending",
   ).length;
+  const totalSales = sellerOrders
+    .filter((order) => order.status === "Completed")
+    .reduce((sum, order) => sum + Number(order.subtotal || 0), 0);
 
   return (
     <div>
@@ -183,16 +159,14 @@ function SellerDashboard({ user, go }) {
       <div className="stats">
         <Stat
           title="Total Sales"
-          value={money(
-            sellerOrders.reduce((sum, order) => sum + order.total, 0),
-          )}
-          trend={sellerOrders.length ? "New orders" : "No orders"}
+          value={money(totalSales)}
+          trend={sellerOrders.length ? "Completed orders" : "No orders"}
           note="from customer orders"
         />
         <Stat
           title="Total Orders"
           value={sellerOrders.length}
-          trend={sellerOrders.length ? "Needs attention" : "No orders"}
+          trend={sellerOrders.length ? "Total orders" : "No orders"}
           note="from customers"
         />
         <Stat
@@ -205,7 +179,7 @@ function SellerDashboard({ user, go }) {
           title="Pending Orders"
           value={pendingCount}
           trend="Needs attention"
-          note=""
+          note="awaiting your response"
         />
       </div>
       <div className="seller-grid">
@@ -217,7 +191,7 @@ function SellerDashboard({ user, go }) {
             </button>
           </div>
           {sellerOrders.length ?
-            <OrdersTable compact orders={sellerOrders} />
+            <RecentOrdersTable orders={sellerOrders} />
           : <div className="empty">
               <Package size={32} />
               <h3>No customer orders yet</h3>
@@ -263,132 +237,9 @@ function SellerDashboard({ user, go }) {
   );
 }
 
-// ---------- SellerOrders ----------
-function SellerOrders({ user }) {
-  const [filter, setFilter] = useState("All");
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const sellerOrderKey = `vendora-seller-orders-${user.email}`;
-  const [sellerOrders, setSellerOrders] = useState(() =>
-    readList(sellerOrderKey),
-  );
-
-  useEffect(() => {
-    const showOrder = (e) => setSelectedOrder(e.detail);
-    window.addEventListener("view-order", showOrder);
-    return () => window.removeEventListener("view-order", showOrder);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(sellerOrderKey, JSON.stringify(sellerOrders));
-  }, [sellerOrderKey, sellerOrders]);
-
-  const updateStatus = (id, status) => {
-    setSellerOrders((list) =>
-      list.map((order) =>
-        sameOrderId(order.id, id) ? { ...order, status } : order,
-      ),
-    );
-    syncBuyerOrderStatus(id, status);
-  };
-
-  const countFor = (status) =>
-    status === "All" ?
-      sellerOrders.length
-    : sellerOrders.filter((order) => order.status === status).length;
-
-  const visibleOrders =
-    filter === "All" ? sellerOrders : (
-      sellerOrders.filter((order) => order.status === filter)
-    );
-
-  return (
-    <div>
-      <div className="page-title">
-        <div>
-          <h1>Orders</h1>
-          <p>Track, fulfill, and manage your customer orders.</p>
-        </div>
-      </div>
-
-      <div className="tabs">
-        {ORDER_FILTERS.map((status) => (
-          <button
-            key={status}
-            className={filter === status ? "selected" : ""}
-            onClick={() => setFilter(status)}
-          >
-            {status}
-            <span className="tab-count">{countFor(status)}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="table-card">
-        {visibleOrders.length ?
-          <OrdersTable orders={visibleOrders} onStatusChange={updateStatus} />
-        : <div className="empty">
-            <Package size={32} />
-            <h3>
-              No {filter === "All" ? "" : filter.toLowerCase() + " "}orders
-            </h3>
-          </div>
-        }
-      </div>
-
-      {selectedOrder && (
-        <div className="modal-backdrop" onClick={() => setSelectedOrder(null)}>
-          <div
-            className="form-card modal-card"
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-head">
-              <h2>Order {selectedOrder.id}</h2>
-              <button
-                className="modal-close"
-                aria-label="Close"
-                onClick={() => setSelectedOrder(null)}
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="modal-meta">
-              <p>
-                Customer: <strong>{selectedOrder.customer}</strong>
-              </p>
-              <p>
-                Status: <Status>{selectedOrder.status}</Status>
-              </p>
-            </div>
-            <h3 className="modal-sub">Products purchased</h3>
-            {(selectedOrder.products || []).map((product) => (
-              <div className="summary-product" key={product}>
-                <span>{product}</span>
-              </div>
-            ))}
-            <div className="total">
-              <span>Total</span>
-              <b>{money(selectedOrder.total)}</b>
-            </div>
-            <button
-              className="primary full"
-              onClick={() => setSelectedOrder(null)}
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ---------- SellerRoutes ----------
 export function SellerRoutes({ user, page, go, updateUser, onSaveProduct }) {
   if (page === "products") return <SellerProducts user={user} go={go} />;
-  if (page === "seller-orders") return <SellerOrders user={user} />;
-  if (page === "analytics") return <Analytics />;
+  if (page === "seller-orders") return <SellerOrders />;
   if (page === "messages")
     return (
       <Messages role={user.role} onGoHome={() => go("seller-dashboard")} />

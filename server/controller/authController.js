@@ -205,7 +205,6 @@ export const verifyLoginOtp = async (req, res) => {
     }
     const user = users[0];
 
-    // A code sent before the restriction must not let the user in
     const restriction = await getActiveRestriction(user.id);
     if (restriction) return restrictedResponse(res, restriction);
 
@@ -327,6 +326,79 @@ export const staffLogin = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error during staff login.",
+    });
+  }
+};
+
+export const fetchProfile = async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT id, fullname, email, phone_num, address, role,
+              verification_status
+       FROM users WHERE id = ?`,
+      [req.user.userId],
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    return res.json({ success: true, profile: rows[0] });
+  } catch (error) {
+    console.error("Fetch profile error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Could not load profile.",
+    });
+  }
+};
+
+export const saveProfile = async (req, res) => {
+  try {
+    const { name, phone, address } = req.body;
+
+    if (typeof name !== "string" || !name.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Name is required.",
+      });
+    }
+
+    await db.query(
+      `UPDATE users
+       SET fullname = ?, phone_num = ?, address = ?
+       WHERE id = ?`,
+      [
+        name.trim(),
+        typeof phone === "string" ? phone.trim() : "",
+        typeof address === "string" ? address.trim() : "",
+        req.user.userId,
+      ],
+    );
+
+    const [rows] = await db.query(
+      `SELECT id, fullname, email, phone_num, address, role,
+              verification_status
+       FROM users WHERE id = ?`,
+      [req.user.userId],
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    return res.json({ success: true, profile: rows[0] });
+  } catch (error) {
+    console.error("Save profile error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Could not save profile.",
     });
   }
 };

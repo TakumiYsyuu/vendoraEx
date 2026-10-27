@@ -1,135 +1,124 @@
-import { sameOrderId } from "../utils/helpers";
+export const ORDER_STATUSES = [
+  "Pending",
+  "Processing",
+  "In Transit",
+  "Out for Delivery",
+  "Completed",
+  "Cancelled",
+];
 
-const SHIPPING_FEE = 50;
-const LEGACY_ORDER_ID = "#ORD-688556";
+const BASE = (import.meta.env.VITE_URL || "http://localhost:5000/api").replace(
+  /\/+$/,
+  "",
+);
 
-// Storage reads are guarded so malformed demo data never crashes the order screens.
-function readOrderList(key) {
-  try {
-    const value = JSON.parse(localStorage.getItem(key) || "[]");
-    if (Array.isArray(value)) return value;
-  } catch {
-    // A backend implementation would log or report this invalid payload.
-  }
-  return [];
-}
+const getToken = () =>
+  localStorage.getItem("vendora_token") ||
+  sessionStorage.getItem("vendora_token");
 
-function formatOrderDate(date) {
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
+async function request(path = "", options = {}) {
+  const res = await fetch(`${BASE}/orders${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+    },
   });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.success === false)
+    throw new Error(data.message || "Something went wrong.");
+  return data;
 }
 
-function getProductQuantity(product, quantities) {
-  return quantities[product.id] || 1;
-}
+const patch = (id, action, body) =>
+  request(`/${id}/${action}`, {
+    method: "PATCH",
+    body: body ? JSON.stringify(body) : undefined,
+  });
 
-function getOrderTotal(products, quantities) {
-  return products.reduce(
-    (total, product) =>
-      total + product.price * getProductQuantity(product, quantities),
-    0,
-  );
-}
+// ---------- kept from the old file (used by App.jsx) ----------
+const SHIPPING_FEE = 50;
 
 export function purgeLegacyOrders() {
+  // Orders live in the database now: remove the old demo data from localStorage.
   Object.keys(localStorage)
     .filter(
       (key) =>
         key.startsWith("vendora-orders-") ||
         key.startsWith("vendora-seller-orders-"),
     )
-    .forEach((key) => {
-      const orders = readOrderList(key);
-      const currentOrders = orders.filter(
-        (order) => order.id !== LEGACY_ORDER_ID,
-      );
-      localStorage.setItem(key, JSON.stringify(currentOrders));
-    });
+    .forEach((key) => localStorage.removeItem(key));
 }
 
 export function loadPurchaseCategories(user) {
   if (!user?.email) return [];
-  return readOrderList(`vendora-last-categories-${user.email}`);
+  try {
+    const v = JSON.parse(
+      localStorage.getItem(`vendora-last-categories-${user.email}`) || "[]",
+    );
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
 }
 
-function groupProductsBySeller(cart) {
-  return cart.reduce((groups, product) => {
-    if (!product.sellerEmail) return groups;
-    if (!groups[product.sellerEmail]) groups[product.sellerEmail] = [];
-    groups[product.sellerEmail].push(product);
-    return groups;
-  }, {});
-}
-
-// Creates buyer and seller order records. Replace these storage writes with order API calls later.
-export function placeOrder({ user, cart, quantities }) {
+// ---------- buyer ----------
+// Now async: App.jsx must await it (see the patch notes).
+export async function placeOrder({ user, cart, quantities, shipping }) {
   if (!user?.email || !cart.length) return [];
-
-  const categories = [...new Set(cart.map((product) => product.category))];
+  const data = await request("", {
+    method: "POST",
+    body: JSON.stringify({
+      items: cart.map((p) => ({
+        productId: p.id,
+        quantity: quantities[p.id] || 1,
+      })),
+      shipping,
+    }),
+  });
   localStorage.setItem(
     `vendora-last-categories-${user.email}`,
-    JSON.stringify(categories),
+    JSON.stringify(data.categories || []),
   );
-
-  const now = new Date();
-  const deliveryDate = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
-  const orderId = `#ORD-${Date.now().toString().slice(-6)}`;
-  const merchandiseTotal = getOrderTotal(cart, quantities);
-  const order = {
-    id: orderId,
-    customer: user.name,
-    date: formatOrderDate(now),
-    expectedDate: formatOrderDate(deliveryDate),
-    total: merchandiseTotal + SHIPPING_FEE,
-    status: "Processing",
-    products: cart.map((product) => ({
-      productId: product.id,
-      name: product.name,
-      image: product.image,
-      shop: product.seller,
-      price: product.price,
-      quantity: getProductQuantity(product, quantities),
-    })),
-  };
-
-  const buyerKey = `vendora-orders-${user.email}`;
-  localStorage.setItem(
-    buyerKey,
-    JSON.stringify([...readOrderList(buyerKey), order]),
-  );
-
-  Object.entries(groupProductsBySeller(cart)).forEach(
-    ([sellerEmail, products]) => {
-      const sellerKey = `vendora-seller-orders-${sellerEmail}`;
-      const sellerOrder = {
-        id: orderId,
-        customer: user.name,
-        date: order.date,
-        total: getOrderTotal(products, quantities),
-        status: "Processing",
-        products: products.map((product) => product.name),
-      };
-      localStorage.setItem(
-        sellerKey,
-        JSON.stringify([...readOrderList(sellerKey), sellerOrder]),
-      );
-    },
-  );
-  return categories;
+  return data.categories || [];
 }
 
-// Seller status updates are mirrored to buyer records; a backend should scope this per seller shipment.
-export function syncBuyerOrderStatus(id, status) {
-  Object.keys(localStorage)
-    .filter((key) => key.startsWith("vendora-orders-"))
-    .forEach((key) => {
-      const nextOrders = readOrderList(key).map((order) => {
-        if (!sameOrderId(order.id, id)) return order;
-        return { ...order, status };
-      });
-      localStorage.setItem(key, JSON.stringify(nextOrders));
-    });
-}
+export const fetchMyOrders = () => request("/mine").then((d) => d.orders);
+export const markOrderReceived = (id) => patch(id, "received");
+
+// ---------- seller ----------
+export const fetchSellerOrders = () => request("/seller").then((d) => d.orders);
+export const acceptOrder = (id) => patch(id, "accept");
+export const rejectOrder = (id, reason) => patch(id, "reject", { reason });
+export const sendOrderToTransit = (id) => patch(id, "transit");
+
+// ---------- staff ----------
+export const fetchStaffOrders = () => request("/staff").then((d) => d.orders);
+export const markReadyToDeliver = (id) => patch(id, "ready");
+
+// ---------- admin ----------
+export const fetchAllOrders = (status) =>
+  request(
+    status ? `/admin?status=${encodeURIComponent(status)}` : "/admin",
+  ).then((d) => d.orders);
+
+// ---------- shared ----------
+export const fetchOrder = (id) => request(`/${id}`).then((d) => d.order);
+
+export const money = (n) =>
+  `₱${Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
+
+export const formatDate = (d) =>
+  d ?
+    new Date(d).toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    })
+  : "—";
+
+export function syncBuyerOrderStatus() {}
+
+export { SHIPPING_FEE };

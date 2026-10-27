@@ -2,10 +2,47 @@ import { Heart, Star } from "lucide-react";
 import ProductArt from "../components/ProductArt";
 import { money } from "../utils/helpers";
 
+const LOW_STOCK = 5;
+
+// Small stock label shown on every product card
+function StockLabel({ stock }) {
+  const amount = Number(stock) || 0;
+  const out = amount <= 0;
+  const low = !out && amount <= LOW_STOCK;
+  const color =
+    out ? "#dc2626"
+    : low ? "#d97706"
+    : "#16a34a";
+
+  return (
+    <small
+      style={{
+        display: "block",
+        margin: "4px 0 6px",
+        fontSize: 11,
+        fontWeight: 600,
+        color,
+      }}
+    >
+      {out ?
+        "Out of stock"
+      : low ?
+        `Only ${amount} left`
+      : `${amount} in stock`}
+    </small>
+  );
+}
+
 // ---------- ProductCard ----------
 function ProductCard({ p, openProduct, add, isWishlisted, toggleWishlist }) {
+  const soldOut = (Number(p.stock) || 0) <= 0;
+
   return (
-    <article className="product-card" onClick={() => openProduct(p)}>
+    <article
+      className="product-card"
+      style={soldOut ? { opacity: 0.85 } : undefined}
+      onClick={() => openProduct(p)}
+    >
       <div className="card-image">
         <ProductArt p={p} />
         <button
@@ -46,14 +83,17 @@ function ProductCard({ p, openProduct, add, isWishlisted, toggleWishlist }) {
         </div>
         <strong>{money(p.price)}</strong>
         <del>{money(p.old)}</del>
+        <StockLabel stock={p.stock} />
         <button
           className="add-btn"
+          disabled={soldOut}
+          style={soldOut ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
           onClick={(e) => {
             e.stopPropagation();
-            add(p);
+            if (!soldOut) add(p);
           }}
         >
-          Add to Cart
+          {soldOut ? "Out of Stock" : "Add to Cart"}
         </button>
       </div>
     </article>

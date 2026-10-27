@@ -1,0 +1,40 @@
+/* Status pills for the delivery table (base .st-status comes from staffManage.css) */
+.st-status.dl-transit {
+  background: #fff4e0;
+  color: #b45309;
+}
+
+.st-status.dl-out {
+  background: #e6f0ff;
+  color: #1d4ed8;
+}
+
+.st-status.dl-done {
+  background: #e3f6ea;
+  color: #15803d;
+}
+
+.st-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.st-status.dl-transit {
+  background: #fff4e0;
+  color: #b45309;
+}
+
+.st-status.dl-out {
+  background: #e6f0ff;
+  color: #1d4ed8;
+}
+
+.st-status.dl-done {
+  background: #e3f6ea;
+  color: #15803d;
+}
+
+.st-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

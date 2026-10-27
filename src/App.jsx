@@ -25,6 +25,8 @@ import {
   persistLogin,
   persistUserUpdate,
   clearStoredUser,
+  saveProfile,
+  fetchProfile,
 } from "./logic/auth";
 
 import {
@@ -44,6 +46,13 @@ import {
   loadPurchaseCategories,
   placeOrder,
 } from "./logic/orders";
+
+import {
+  fetchCart,
+  addCartItem,
+  setCartQuantity,
+  removeCartItem,
+} from "./logic/cart";
 
 export default function App() {
   const [user, setUser] = useState(() => loadStoredUser());
@@ -66,7 +75,7 @@ export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [messageTarget, setMessageTarget] = useState("");
   const [reportProduct, setReportProduct] = useState(null);
-  const [storefrontProducts, setStorefrontProducts] = useState([]); // CHANGED
+  const [storefrontProducts, setStorefrontProducts] = useState([]);
   const userEmail = user?.email || "";
   const isModerator = user?.role === "admin" || user?.role === "staff";
 
@@ -88,11 +97,18 @@ export default function App() {
   useEffect(() => {
     purgeLegacyOrders();
   }, []);
+
+  // Sessions saved before the address existed don't have it yet: refresh from the server
+  useEffect(() => {
+    if (!userEmail || isModerator) return;
+    fetchProfile()
+      .then((p) => setUser((u) => (u ? persistUserUpdate(u, p) : u)))
+      .catch(() => {});
+  }, [userEmail]);
   const [purchaseCategories, setPurchaseCategories] = useState(() =>
     user ? loadPurchaseCategories(user) : [],
   );
 
-  // CHANGED: storefrontProducts now comes from state (database), not localStorage
   const filteredStorefront = filterProducts(storefrontProducts, query);
 
   const skipClear = useRef(false);
@@ -132,11 +148,63 @@ export default function App() {
     setSelected(product);
     setPage("product");
   };
-  // Keeps one cart entry per product and stores the selected quantity separately.
+
+  // ---------- CART (saved in the database) ----------
+  // Loads the saved cart from the server into the cart + quantities state.
+  const reloadCart = () =>
+    fetchCart()
+      .then((items) => {
+        setCart(items.map(({ quantity, ...product }) => product));
+        setQuantities(
+          Object.fromEntries(items.map((item) => [item.id, item.quantity])),
+        );
+      })
+      .catch((err) => console.error("Failed to load cart:", err));
+
+  useEffect(() => {
+    if (!userEmail || isModerator) {
+      setCart([]);
+      setQuantities({});
+      return;
+    }
+    reloadCart();
+  }, [userEmail]);
+
+  // Keeps one cart entry per product, updates the screen instantly, then saves it.
   const add = (p, quantity = 1) => {
     const amount = Math.max(1, Number(quantity) || 1);
     setCart((c) => (c.some((x) => x.id === p.id) ? c : [...c, p]));
     setQuantities((q) => ({ ...q, [p.id]: (q[p.id] || 0) + amount }));
+    addCartItem(p.id, amount)
+      .then(reloadCart) // picks up the real quantity (the server limits it to the stock)
+      .catch((err) => {
+        alert(err.message);
+        reloadCart();
+      });
+  };
+
+  // Cart.jsx still calls setCart / setQuantities. These wrappers do the same
+  // thing as before AND save the change (remove item / new quantity) in the database.
+  const syncSetCart = (next) => {
+    const nextCart = typeof next === "function" ? next(cart) : next;
+    const keep = new Set(nextCart.map((p) => p.id));
+    cart
+      .filter((p) => !keep.has(p.id))
+      .forEach((p) => removeCartItem(p.id).catch(reloadCart));
+    setCart(nextCart);
+  };
+
+  const syncSetQuantities = (next) => {
+    const nextQuantities = typeof next === "function" ? next(quantities) : next;
+    Object.keys(nextQuantities).forEach((id) => {
+      if (nextQuantities[id] === quantities[id]) return;
+      const save =
+        nextQuantities[id] > 0 ?
+          setCartQuantity(id, nextQuantities[id])
+        : removeCartItem(id);
+      save.catch(reloadCart);
+    });
+    setQuantities(nextQuantities);
   };
 
   // Load this user's wishlist from the database
@@ -186,22 +254,49 @@ export default function App() {
     setAuthView("login");
   };
   const updateUser = (nextUser) => setUser(persistUserUpdate(user, nextUser));
+  // Buyer Account Settings: save to the database first, then update the screen
+  const saveBuyerProfile = async (profile) => {
+    const saved = await saveProfile(profile);
+    setUser(persistUserUpdate(user, { ...profile, ...saved }));
+  };
   const addSellerProduct = (product) => {
     saveSellerProduct(user, product);
-    refreshProducts(); // CHANGED: was setProductVersion
+    refreshProducts();
     setPage("products");
   };
-  const handlePlaceOrder = () => {
+
+  const handlePlaceOrder = async () => {
     // Prevent an empty cart from creating a placeholder order.
     if (!cart.length) {
       setPage("cart");
       return;
     }
-    setPurchaseCategories(placeOrder({ user, cart, quantities }));
-    setCart([]);
-    setQuantities({});
-    setPage("orders");
+    try {
+      if (!user.address) {
+        alert("Please add your delivery address in Account Settings first.");
+        setPage("account-settings");
+        return;
+      }
+      const categories = await placeOrder({
+        user,
+        cart,
+        quantities,
+        shipping: {
+          name: user.name,
+          phone: user.phone,
+          address: user.address,
+        },
+      });
+      setPurchaseCategories(categories);
+      setCart([]); // the server already removed these items from the saved cart
+      setQuantities({});
+      setPage("orders");
+      refreshProducts(); // stock changed
+    } catch (err) {
+      alert(err.message);
+    }
   };
+
   const logout = () => {
     clearStoredUser();
     setUser(null);
@@ -209,7 +304,7 @@ export default function App() {
     setQuantities({});
     setWishlistIds([]);
     setPurchaseCategories([]);
-    setStorefrontProducts([]); // CHANGED
+    setStorefrontProducts([]);
     setMobileOpen(false);
     setPage("home");
   };
@@ -220,7 +315,7 @@ export default function App() {
       setPage("seller-dashboard");
       return;
     }
-    refreshProducts(); // CHANGED: reload so new seller products show up
+    refreshProducts();
     setMode("buyer");
     setPage("home");
   };
@@ -282,7 +377,6 @@ export default function App() {
     );
   };
 
-  // Each role owns its route renderer, keeping backend role checks easy to mirror later.
   const renderContent = () => {
     if (user.role === "admin")
       return <AdminModeration page={page} go={go} user={user} />;
@@ -306,9 +400,9 @@ export default function App() {
         selected={selected}
         setSelected={setSelected}
         cart={cart}
-        setCart={setCart}
+        setCart={syncSetCart}
         quantities={quantities}
-        setQuantities={setQuantities}
+        setQuantities={syncSetQuantities}
         wishlistIds={wishlistIds}
         toggleWishlist={toggleWishlist}
         add={add}
@@ -320,7 +414,7 @@ export default function App() {
         messageTarget={messageTarget}
         setMessageTarget={setMessageTarget}
         setReportProduct={setReportProduct}
-        updateUser={updateUser}
+        updateUser={saveBuyerProfile}
         onPlaceOrder={handlePlaceOrder}
       />
     );

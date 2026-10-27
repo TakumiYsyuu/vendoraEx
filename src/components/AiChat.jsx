@@ -16,11 +16,40 @@ const EMPTY_FORM = {
   details: "",
 };
 
+function validateForm(f) {
+  const errors = {};
+  const name = f.reportedName.trim();
+  const email = f.reportedContact.trim();
+  const orderId = f.orderId.trim();
+  const subject = f.subject.trim();
+  const details = f.details.trim();
+
+  if (!name) errors.reportedName = "Enter the name of the person or store.";
+  else if (name.length < 2) errors.reportedName = "Name is too short.";
+
+  if (email && !/^\S+@\S+\.\S+$/.test(email))
+    errors.reportedContact = "Enter a valid email address.";
+
+  if (orderId && !/^[A-Za-z0-9_-]+$/.test(orderId))
+    errors.orderId = "Use only letters, numbers, dashes and underscores.";
+
+  if (!subject) errors.subject = "Enter a subject.";
+  else if (subject.length < 5)
+    errors.subject = "Subject must be at least 5 characters.";
+
+  if (!details) errors.details = "Tell us what happened.";
+  else if (details.length < 20)
+    errors.details = `Please add more detail (${details.length}/20 characters minimum).`;
+
+  return errors;
+}
+
 export default function AiChat({ onBack, onHome }) {
-  const [mode, setMode] = useState("menu"); // menu | form | sent | chat
+  const [mode, setMode] = useState("menu");
   const [sentReport, setSentReport] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -33,8 +62,10 @@ export default function AiChat({ onBack, onHome }) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages.length, busy, mode, error]);
 
-  const setField = (key) => (e) =>
+  const setField = (key) => (e) => {
     setForm((current) => ({ ...current, [key]: e.target.value }));
+    setFieldErrors((current) => ({ ...current, [key]: undefined }));
+  };
 
   const send = async (content) => {
     const next = [...messages, { role: "user", content }];
@@ -62,6 +93,11 @@ export default function AiChat({ onBack, onHome }) {
   const submitForm = async (e) => {
     e.preventDefault();
     if (submitting) return;
+
+    const errors = validateForm(form);
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) return;
+
     const data = {
       reportedName: form.reportedName.trim(),
       reportedEmail: form.reportedContact.trim(),
@@ -69,15 +105,14 @@ export default function AiChat({ onBack, onHome }) {
       subject: form.subject.trim(),
       details: form.details.trim(),
     };
-    if (!data.reportedName || !data.subject || !data.details) return;
 
     setSubmitting(true);
     setFormError("");
     try {
-      // Saved to the database for staff. The AI is not involved.
       await submitReport(data);
       setSentReport({ subject: data.subject, orderId: data.orderId });
       setForm(EMPTY_FORM);
+      setFieldErrors({});
       setMode("sent");
     } catch (err) {
       setFormError(err.message);
@@ -85,6 +120,13 @@ export default function AiChat({ onBack, onHome }) {
       setSubmitting(false);
     }
   };
+
+  const FieldError = ({ name }) =>
+    fieldErrors[name] ?
+      <small className="ai-field-error" role="alert">
+        {fieldErrors[name]}
+      </small>
+    : null;
 
   return (
     <>
@@ -148,7 +190,7 @@ export default function AiChat({ onBack, onHome }) {
         )}
 
         {mode === "form" && (
-          <form className="ai-form" onSubmit={submitForm}>
+          <form className="ai-form" onSubmit={submitForm} noValidate>
             <div className="ai-form-head">
               <h2>Report a concern</h2>
               <p>
@@ -169,8 +211,9 @@ export default function AiChat({ onBack, onHome }) {
                     onChange={setField("reportedName")}
                     placeholder="e.g. Juan Dela Cruz or Gadget Shop"
                     maxLength={100}
-                    required
+                    aria-invalid={!!fieldErrors.reportedName}
                   />
+                  <FieldError name="reportedName" />
                 </label>
                 <label className="ai-field">
                   <span>
@@ -182,7 +225,9 @@ export default function AiChat({ onBack, onHome }) {
                     onChange={setField("reportedContact")}
                     placeholder="name@example.com"
                     maxLength={120}
+                    aria-invalid={!!fieldErrors.reportedContact}
                   />
+                  <FieldError name="reportedContact" />
                 </label>
               </div>
             </div>
@@ -199,7 +244,9 @@ export default function AiChat({ onBack, onHome }) {
                     onChange={setField("orderId")}
                     placeholder="e.g. ORD-1024"
                     maxLength={40}
+                    aria-invalid={!!fieldErrors.orderId}
                   />
+                  <FieldError name="orderId" />
                 </label>
                 <label className="ai-field">
                   <span>
@@ -210,8 +257,9 @@ export default function AiChat({ onBack, onHome }) {
                     onChange={setField("subject")}
                     placeholder="Short summary of the problem"
                     maxLength={100}
-                    required
+                    aria-invalid={!!fieldErrors.subject}
                   />
+                  <FieldError name="subject" />
                 </label>
                 <label className="ai-field full">
                   <span>
@@ -222,8 +270,9 @@ export default function AiChat({ onBack, onHome }) {
                     onChange={setField("details")}
                     placeholder="Describe what happened, when it happened, and anything you already tried."
                     maxLength={1500}
-                    required
+                    aria-invalid={!!fieldErrors.details}
                   />
+                  <FieldError name="details" />
                   <small className="ai-hint">
                     {form.details.length} / 1500
                   </small>

@@ -34,7 +34,6 @@ const EMPTY_DRAFT = {
   password: "",
 };
 
-// Converts a Date to the "YYYY-MM-DDTHH:mm" format datetime-local inputs use
 function toInput(date) {
   const d = new Date(date);
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());

@@ -1,23 +1,18 @@
-import { useMemo } from "react";
-import {
-  ClipboardList,
-  Eye,
-  Flag,
-  MessageSquare,
-  ShieldCheck,
-  Truck,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Eye, Flag, MessageSquare, ShieldCheck, Truck } from "lucide-react";
 
-import Status from "../components/Status";
 import Messages from "../components/Messages";
 import StaffReport from "./StaffReport";
+import StaffDelivery from "./StaffDelivery";
+import { fetchReports } from "../logic/admin";
 
-import { getReports } from "../logic/moderation";
-import { getAdminStats } from "../logic/admin";
-
-const RESOLVED_STATUSES = ["resolved", "closed", "banned", "dismissed"];
-const isResolved = (report) =>
-  RESOLVED_STATUSES.includes(String(report.status || "").toLowerCase());
+const STATUS_LABEL = {
+  pending: "Open",
+  reviewed: "In review",
+  escalated: "Awaiting admin",
+  resolved: "Resolved",
+  dismissed: "Dismissed",
+};
 
 function EmptyState({ icon: Icon, title, description }) {
   return (
@@ -46,16 +41,23 @@ function StatCard({ label, value, detail }) {
 }
 
 function StaffDashboard({ go }) {
-  const reports = useMemo(() => getReports(), []);
-  const stats = getAdminStats(reports) || {};
+  const [reports, setReports] = useState([]);
 
-  const openReports = reports.filter((report) => !isResolved(report));
-  const resolvedReports = reports.filter(isResolved);
+  useEffect(() => {
+    fetchReports()
+      .then(setReports)
+      .catch((err) => console.error("Failed to load reports:", err));
+  }, []);
+
+  const count = (status) => reports.filter((r) => r.status === status).length;
+  const waiting = reports.filter(
+    (r) => r.status === "pending" || (r.status === "reviewed" && r.claimedByMe),
+  );
 
   const quickActions = [
     [
       "Review Reports",
-      "Open, reply to, and resolve concerns",
+      "Claim, review, and submit final reports",
       "staff-reports",
       Flag,
     ],
@@ -84,23 +86,23 @@ function StaffDashboard({ go }) {
       <section className="admin-stat-grid" aria-label="Support totals">
         <StatCard
           label="Open Reports"
-          value={openReports.length}
-          detail="Waiting for review"
+          value={count("pending")}
+          detail="Waiting to be claimed"
         />
         <StatCard
-          label="Resolved Reports"
-          value={resolvedReports.length}
+          label="In Review"
+          value={count("reviewed")}
+          detail="Being handled by staff"
+        />
+        <StatCard
+          label="Awaiting Admin"
+          value={count("escalated")}
+          detail="Needs an admin decision"
+        />
+        <StatCard
+          label="Resolved"
+          value={count("resolved")}
           detail="Closed concerns"
-        />
-        <StatCard
-          label="Orders Today"
-          value={stats.ordersToday ?? 0}
-          detail="Placed today"
-        />
-        <StatCard
-          label="Pending Reviews"
-          value={stats.pendingReviews ?? 0}
-          detail="Needs attention"
         />
       </section>
 
@@ -112,36 +114,39 @@ function StaffDashboard({ go }) {
               View all
             </button>
           </div>
-          {openReports.length ?
+          {waiting.length ?
             <table>
               <thead>
                 <tr>
                   <th>Report</th>
-                  <th>Seller</th>
+                  <th>Reported</th>
                   <th>Submitted</th>
                   <th>Status</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {openReports.slice(0, 5).map((report, index) => (
-                  <tr key={report.id ?? index}>
-                    <td>Product report</td>
-                    <td>{report.seller || "Unknown seller"}</td>
+                {waiting.slice(0, 5).map((report) => (
+                  <tr key={report.id}>
+                    <td>{report.subject}</td>
+                    <td>{report.reportedName}</td>
                     <td>
                       {report.createdAt ?
                         new Date(report.createdAt).toLocaleDateString()
                       : "Current"}
                     </td>
                     <td>
-                      <Status>{report.status}</Status>
+                      <span className={`rp-status rp-${report.status}`}>
+                        {STATUS_LABEL[report.status] || report.status}
+                      </span>
                     </td>
                     <td>
                       <button
                         className="text-btn"
                         onClick={() => go("staff-reports")}
                       >
-                        <Eye size={14} /> Review
+                        <Eye size={14} />{" "}
+                        {report.status === "pending" ? "Review" : "Continue"}
                       </button>
                     </td>
                   </tr>
@@ -173,28 +178,25 @@ function StaffDashboard({ go }) {
   );
 }
 
-function DeliveryPage() {
-  return (
-    <div className="admin-page">
-      <div className="page-title">
-        <div>
-          <h1>Delivery</h1>
-          <p>Follow up on order deliveries and delivery concerns.</p>
-        </div>
-      </div>
-      <EmptyState
-        icon={ClipboardList}
-        title="Delivery is not set up yet"
-        description="Delivery tracking will appear here once it is connected."
-      />
-    </div>
-  );
-}
-
 export default function StaffModeration({ page, go, user }) {
+  const [messageTarget, setMessageTarget] = useState("");
+
+  const openChat = (target) => {
+    setMessageTarget(target);
+    go("staff-messages");
+  };
+
   if (page === "staff-reports")
-    return <StaffReport page="staff-reports" go={go} />;
-  if (page === "staff-messages") return <Messages user={user} seller />;
-  if (page === "staff-delivery") return <DeliveryPage />;
+    return <StaffReport go={go} onMessage={openChat} />;
+  if (page === "staff-messages")
+    return (
+      <Messages
+        role={user?.role}
+        target={messageTarget}
+        onTargetHandled={() => setMessageTarget("")}
+        onGoHome={() => go("staff-dashboard")}
+      />
+    );
+  if (page === "staff-delivery") return <StaffDelivery />;
   return <StaffDashboard go={go} />;
 }

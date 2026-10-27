@@ -1,103 +1,162 @@
-import { ArrowLeft, MapPin } from "lucide-react";
+import { ArrowLeft, Banknote, Check, MapPin, Truck } from "lucide-react";
+import ProductArt from "../components/ProductArt";
 import { money } from "../utils/helpers";
+import "../styles/checkout.css";
 
-const DELIVERY_OPTIONS = [
-  { id: "standard", label: "Standard Shipping", eta: "3–5 days", fee: 50 },
-  { id: "express", label: "Express Shipping", eta: "1–2 days", fee: 120 },
-];
-
-const PAYMENT_OPTIONS = [
-  { id: "cod", label: "Cash on Delivery" },
-  { id: "online", label: "GCash / Card / PayPal" },
-];
+// Standard delivery only, Cash on Delivery only.
+const SHIPPING_FEE = 50;
 
 export default function Checkout({ user, cart, quantities, go, onPlaceOrder }) {
   const qtyOf = (id) => quantities[id] || 1;
-  const total =
-    cart.reduce((sum, p) => sum + p.price * qtyOf(p.id), 0) +
-    (cart.length ? 50 : 0);
+  const subtotal = cart.reduce((sum, p) => sum + p.price * qtyOf(p.id), 0);
+  const shipping = cart.length ? SHIPPING_FEE : 0;
+  const total = subtotal + shipping;
+  const itemCount = cart.reduce((sum, p) => sum + qtyOf(p.id), 0);
 
   return (
-    <div>
-      <button className="back-btn" onClick={() => go("cart")}>
+    <div className="co-page">
+      <button className="co-back" onClick={() => go("cart")}>
         <ArrowLeft size={16} /> Back to cart
       </button>
-      <div className="checkout-steps">
-        <span className="done">1 Shipping</span>
-        <span>2 Payment</span>
-        <span>3 Confirmation</span>
+
+      <div className="co-head">
+        <h1>Checkout</h1>
+        <p>Confirm your details and place your order.</p>
       </div>
-      <div className="checkout-layout">
-        <div>
-          <div className="form-card">
-            <h2>Shipping Address</h2>
-            <div className="address">
-              <MapPin />
-              <div>
-                <b>{user.name}</b>
-                <p>
-                  {user.address || "Add your address in Account Settings"}
-                  <br />
-                  {user.phone || "Add your phone number in Account Settings"}
-                </p>
-              </div>
+
+      <div className="co-steps" aria-label="Checkout progress">
+        <span className="co-step done">
+          <b>
+            <Check size={13} />
+          </b>
+          Cart
+        </span>
+        <span className="co-step-line" />
+        <span className="co-step on">
+          <b>2</b>
+          Checkout
+        </span>
+        <span className="co-step-line" />
+        <span className="co-step">
+          <b>3</b>
+          Confirmation
+        </span>
+      </div>
+
+      <div className="co-layout">
+        <div className="co-main">
+          <section className="co-card">
+            <div className="co-card-head">
+              <h2>Shipping address</h2>
               <button
-                className="text-btn"
+                type="button"
+                className="co-link"
                 onClick={() => go("account-settings")}
               >
-                Change
+                {user.address ? "Change" : "Add address"}
               </button>
             </div>
-          </div>
+            <div className="co-address">
+              <span className="co-icon">
+                <MapPin size={20} />
+              </span>
+              <div>
+                <strong>{user.name}</strong>
+                <p className={user.address ? "" : "missing"}>
+                  {user.address ||
+                    "No address yet. Add one in Account Settings."}
+                </p>
+                <p className={user.phone ? "" : "missing"}>
+                  {user.phone || "No phone number yet."}
+                </p>
+              </div>
+            </div>
+          </section>
 
-          <div className="form-card">
-            <h2>Delivery Method</h2>
-            {DELIVERY_OPTIONS.map((option, index) => (
-              <label className="radio" key={option.id}>
-                <input type="radio" name="ship" defaultChecked={index === 0} />
-                <span className="radio-text">
-                  <strong>{option.label}</strong>
-                  <small>{option.eta}</small>
-                </span>
-                <b>{money(option.fee)}</b>
-              </label>
-            ))}
-          </div>
+          <section className="co-card">
+            <h2 style={{ marginBottom: 14 }}>Delivery method</h2>
+            <div className="co-option">
+              <span className="co-icon">
+                <Truck size={20} />
+              </span>
+              <span className="co-option-text">
+                <strong>Standard Shipping</strong>
+                <small>Arrives in 3–5 days</small>
+              </span>
+              <span className="co-option-price">{money(SHIPPING_FEE)}</span>
+            </div>
+          </section>
 
-          <div className="form-card">
-            <h2>Payment Method</h2>
-            {PAYMENT_OPTIONS.map((option, index) => (
-              <label className="radio" key={option.id}>
-                <input type="radio" name="pay" defaultChecked={index === 0} />
-                <span className="radio-text">
-                  <strong>{option.label}</strong>
-                </span>
-              </label>
-            ))}
-          </div>
+          <section className="co-card">
+            <h2 style={{ marginBottom: 14 }}>Payment method</h2>
+            <div className="co-option">
+              <span className="co-icon">
+                <Banknote size={20} />
+              </span>
+              <span className="co-option-text">
+                <strong>Cash on Delivery</strong>
+                <small>Pay in cash when your order arrives</small>
+              </span>
+              <span className="co-check" aria-hidden="true">
+                <Check size={13} />
+              </span>
+            </div>
+            <p className="co-note">
+              Please prepare the exact amount of {money(total)} for the rider.
+            </p>
+          </section>
         </div>
 
-        <aside className="summary">
-          <h2>Order Summary</h2>
-          {cart.map((p) => (
-            <div className="summary-product" key={p.id}>
-              <span>
-                {p.name} × {qtyOf(p.id)}
-              </span>
-              <b>{money(p.price * qtyOf(p.id))}</b>
+        <aside className="co-summary">
+          <h2>
+            Order summary ({itemCount} {itemCount === 1 ? "item" : "items"})
+          </h2>
+
+          <ul className="co-items">
+            {cart.map((p) => (
+              <li className="co-item" key={p.id}>
+                <span className="co-thumb">
+                  <ProductArt p={p} />
+                  <span className="co-qty">{qtyOf(p.id)}</span>
+                </span>
+                <span className="co-item-text">
+                  <strong>{p.name}</strong>
+                  <small>{money(p.price)} each</small>
+                </span>
+                <span className="co-item-total">
+                  {money(p.price * qtyOf(p.id))}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="co-rows">
+            <div className="co-row">
+              <span>Subtotal</span>
+              <b>{money(subtotal)}</b>
             </div>
-          ))}
-          <hr />
-          <div className="total">
-            <span>Total</span>
-            <b>{money(total)}</b>
+            <div className="co-row">
+              <span>Shipping</span>
+              <b>{money(shipping)}</b>
+            </div>
+            <div className="co-row total">
+              <span>Total</span>
+              <b>{money(total)}</b>
+            </div>
           </div>
+
+          {!user.address && (
+            <p className="co-warn" role="alert">
+              Add your delivery address in Account Settings to place an order.
+            </p>
+          )}
+
           <button
-            className="primary full"
+            className="co-place"
             onClick={onPlaceOrder}
-            disabled={!cart.length}
+            disabled={!cart.length || !user.address}
           >
-            Place Order
+            Place Order · {money(total)}
           </button>
         </aside>
       </div>

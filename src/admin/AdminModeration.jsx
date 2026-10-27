@@ -1,32 +1,16 @@
 import { useState, useMemo, useEffect } from "react";
 import "../styles/AdminModeration.css";
-import {
-  ClipboardList,
-  Download,
-  Eye,
-  Pencil,
-  Plus,
-  Store,
-  Users,
-  Search,
-  ShieldOff,
-  ShieldCheck,
-  X,
-} from "lucide-react";
+import { ClipboardList, Eye, Store, Users, ShieldCheck } from "lucide-react";
 
 import Status from "../components/Status";
 import StaffManage from "./StaffManage";
 import ShopAndProduct from "./PoductBoard";
 import UserManage from "./UserManage";
+import ReportManage from "./ReportManage";
+import AdminOrders from "./AdminOrders";
+import { fetchAllOrders } from "../logic/orders";
 import ShopApprovalContainer from "./ShopApprovalContainer";
 import { fetchApplications } from "../logic/verificationAdmin";
-
-import {
-  getReports,
-  saveReports,
-  getSellers,
-  banSeller,
-} from "../logic/moderation";
 
 import {
   getAdminStaff,
@@ -41,9 +25,12 @@ import {
   getAdminStats,
   getAdminSettings,
   getAdminUsers,
+  getSellers,
   saveAdminSettings,
   saveAdminUser,
   setUserRestriction,
+  fetchReports,
+  decideReport,
 } from "../logic/admin";
 import { initials } from "../utils/helpers";
 
@@ -250,172 +237,9 @@ function Dashboard({
   );
 }
 
-function OrdersPage({ orders }) {
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const formatPrice = (price) => `₱${Number(price || 0).toLocaleString()}`;
-  const exportReport = () => {
-    const escapeValue = (value) =>
-      `"${String(value ?? "").replaceAll('"', '""')}"`;
-    const rows = orders.map((order) =>
-      [
-        order.id,
-        order.customer || "Customer",
-        order.date,
-        Number(order.total || 0).toFixed(2),
-        order.status,
-        (order.products || [])
-          .map((product) =>
-            typeof product === "string" ? product : product.name,
-          )
-          .join(", "),
-      ]
-        .map(escapeValue)
-        .join(","),
-    );
-    const report = [
-      "Order ID,Customer,Date,Total,Status,Products",
-      ...rows,
-    ].join("\n");
-    const file = new Blob([report], { type: "text/csv;charset=utf-8" });
-    const downloadUrl = URL.createObjectURL(file);
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = "vendora-orders-report.csv";
-    link.click();
-    URL.revokeObjectURL(downloadUrl);
-  };
-
-  return (
-    <div className="admin-page admin-orders-page">
-      <div className="page-title admin-page-title">
-        <div>
-          <h1>Orders</h1>
-          <p>Monitor orders placed across the marketplace.</p>
-        </div>
-        <button
-          className="outline admin-export-report"
-          onClick={exportReport}
-          disabled={!orders.length}
-        >
-          <Download size={15} /> Export Report
-        </button>
-      </div>
-      <div className="table-card">
-        {orders.length ?
-          <table>
-            <thead>
-              <tr>
-                <th>Order</th>
-                <th>Customer</th>
-                <th>Date</th>
-                <th>Total</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map((order) => (
-                <tr key={order.id}>
-                  <td>{order.id}</td>
-                  <td>{order.customer || "Customer"}</td>
-                  <td>{order.date}</td>
-                  <td>{formatPrice(order.total)}</td>
-                  <td>
-                    <Status>{order.status}</Status>
-                  </td>
-                  <td>
-                    <button
-                      className="text-btn"
-                      onClick={() => setSelectedOrder(order)}
-                    >
-                      <Eye size={14} /> View
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        : <EmptyState
-            icon={ClipboardList}
-            title="No orders yet"
-            description="Orders placed by buyers will appear here."
-          />
-        }
-      </div>
-      {selectedOrder && (
-        <div
-          className="admin-dialog-backdrop"
-          role="presentation"
-          onMouseDown={() => setSelectedOrder(null)}
-        >
-          <section
-            className="admin-user-dialog admin-order-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="admin-order-dialog-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div className="admin-dialog-heading">
-              <div>
-                <h2 id="admin-order-dialog-title">Order {selectedOrder.id}</h2>
-                <p>Review the buyer, order status, and purchased items.</p>
-              </div>
-              <button
-                className="admin-dialog-close"
-                aria-label="Close"
-                onClick={() => setSelectedOrder(null)}
-              >
-                ×
-              </button>
-            </div>
-            <div className="admin-order-summary">
-              <div>
-                <span>Customer</span>
-                <strong>{selectedOrder.customer || "Customer"}</strong>
-              </div>
-              <div>
-                <span>Order date</span>
-                <strong>{selectedOrder.date}</strong>
-              </div>
-              <div>
-                <span>Total</span>
-                <strong>{formatPrice(selectedOrder.total)}</strong>
-              </div>
-              <div>
-                <span>Status</span>
-                <Status>{selectedOrder.status}</Status>
-              </div>
-            </div>
-            <div className="admin-order-items">
-              <h3>Items</h3>
-              {selectedOrder.products?.length ?
-                selectedOrder.products.map((product, index) => (
-                  <div
-                    key={`${typeof product === "string" ? product : product.productId}-${index}`}
-                  >
-                    <span>
-                      {typeof product === "string" ?
-                        product
-                      : `${product.name} × ${product.quantity}`}
-                    </span>
-                    {typeof product !== "string" && (
-                      <strong>
-                        {formatPrice(product.price * product.quantity)}
-                      </strong>
-                    )}
-                  </div>
-                ))
-              : <p>No item information saved for this order.</p>}
-            </div>
-          </section>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function AdminModeration({ page, go, user }) {
-  const [reports, setReports] = useState(() => getReports());
+  const [reports, setReports] = useState([]);
+  const [reportList, setReportList] = useState([]);
   const [notice, setNotice] = useState("");
 
   const [users, setUsers] = useState([]);
@@ -430,6 +254,9 @@ export default function AdminModeration({ page, go, user }) {
     totalUsers: users.length,
     activeSellers: applications.filter((a) => a.status === "Approved").length,
     pendingReviews: applications.filter((a) => a.status === "Pending").length,
+    ordersToday: orders.filter(
+      (o) => new Date(o.createdAt).toDateString() === new Date().toDateString(),
+    ).length,
   };
 
   const loadAdminData = async () => {
@@ -451,7 +278,18 @@ export default function AdminModeration({ page, go, user }) {
 
       setStaff(Array.isArray(staffData) ? staffData : []);
 
-      setOrders(Array.isArray(ordersData) ? ordersData : []);
+      setOrders(
+        Array.isArray(ordersData) ?
+          ordersData.map((o) => ({
+            id: o.code,
+            customer: o.buyerName,
+            date: new Date(o.createdAt).toLocaleDateString(),
+            createdAt: o.createdAt,
+            total: o.total,
+            status: o.status,
+          }))
+        : [],
+      );
     } catch (error) {
       console.error("Failed to load admin data:", error);
     }
@@ -467,6 +305,26 @@ export default function AdminModeration({ page, go, user }) {
       .then(setApplications)
       .catch((error) => console.error("Failed to load applications:", error));
   }, [page]);
+
+  // Load real reports from the database when the Reports tab opens
+  useEffect(() => {
+    if (page !== "admin-reports") return;
+    fetchReports()
+      .then(setReportList)
+      .catch((error) => console.error("Failed to load reports:", error));
+  }, [page]);
+
+  const handleReportDecision = async (report, decision) => {
+    try {
+      await decideReport(report.id, decision);
+      setReportList(await fetchReports());
+      setNotice(`Report #${report.id} ${decision}`);
+      return {};
+    } catch (error) {
+      console.error("Failed to save decision:", error);
+      return { error: error.message || "Failed to save decision." };
+    }
+  };
 
   const handleUserRestriction = async (user, details) => {
     try {
@@ -604,6 +462,16 @@ export default function AdminModeration({ page, go, user }) {
     );
   }
 
+  if (page === "admin-reports") {
+    return (
+      <ReportManage
+        reports={reportList}
+        onDecision={handleReportDecision}
+        go={go}
+      />
+    );
+  }
+
   if (page === "manage-staff") {
     return (
       <StaffManage
@@ -616,7 +484,7 @@ export default function AdminModeration({ page, go, user }) {
   }
 
   if (page === "orders") {
-    return <OrdersPage orders={orders} />;
+    return <AdminOrders />;
   }
 
   if (page === "shops-products") {

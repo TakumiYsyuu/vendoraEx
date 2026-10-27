@@ -343,3 +343,23 @@
     transition: none;
   }
 }
+
+.st-table th,
+.st-table td {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.st-tab {
+  white-space: nowrap;
+}
+
+.st-toolbar,
+.um-filters,
+.st-tabs {
+  flex-wrap: wrap;
+}
+
+.st-scroll {
+  overflow-x: auto;
+}

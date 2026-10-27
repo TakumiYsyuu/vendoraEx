@@ -7,7 +7,7 @@ import {
   Shield,
   ShoppingBag,
   Store,
-  UserGroupIcon,
+  UsersRound,
   Users,
   X,
   FileUser,
@@ -19,11 +19,12 @@ import { initials } from "../utils/helpers";
 
 const adminNavigation = [
   ["admin-dashboard", "Dashboard", LayoutDashboard],
-  ["manage-staff", "Staff Management", UserGroupIcon],
+  ["manage-staff", "Staff Management", UsersRound],
   ["users", "Users", Users],
   ["shops-products", "Shops & Products", Store],
   ["orders", "Orders", ShoppingBag],
   ["shop-Request", "Shop Approvals", FileUser],
+  ["admin-reports", "Reports", Flag],
 ];
 
 const staffNavigation = [

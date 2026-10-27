@@ -1,15 +1,27 @@
 import { useState } from "react";
 import { X } from "lucide-react";
-import { addReport } from "../logic/moderation";
+import { submitProductReport } from "../logic/admin";
 
-export default function ReportSheet({ product, user, onClose }) {
+export default function ReportSheet({ product, onClose }) {
   const [reason, setReason] = useState("Scam or counterfeit product");
   const [details, setDetails] = useState("");
-  const submit = (e) => {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async (e) => {
     e.preventDefault();
-    addReport({ product, user, reason, details });
-    onClose();
+    if (submitting) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      await submitProductReport({ product, reason, details });
+      onClose();
+    } catch (err) {
+      setError(err.message);
+      setSubmitting(false);
+    }
   };
+
   return (
     <div
       style={{
@@ -76,6 +88,7 @@ export default function ReportSheet({ product, user, onClose }) {
           <textarea
             value={details}
             onChange={(e) => setDetails(e.target.value)}
+            maxLength={1400}
             required
             style={{
               display: "block",
@@ -88,6 +101,14 @@ export default function ReportSheet({ product, user, onClose }) {
             }}
           />
         </label>
+        {error && (
+          <p
+            role="alert"
+            style={{ color: "#dc2626", fontSize: 12, marginTop: 12 }}
+          >
+            {error}
+          </p>
+        )}
         <div
           style={{
             display: "flex",
@@ -99,8 +120,8 @@ export default function ReportSheet({ product, user, onClose }) {
           <button type="button" className="outline" onClick={onClose}>
             Cancel
           </button>
-          <button className="primary" type="submit">
-            Submit Report
+          <button className="primary" type="submit" disabled={submitting}>
+            {submitting ? "Submitting..." : "Submit Report"}
           </button>
         </div>
       </form>

@@ -2,6 +2,9 @@ import express from "express";
 import {
   createReport,
   listReports,
+  claimReport,
+  submitFinalReport,
+  decideReport,
   updateReportStatus,
 } from "../controller/reportController.js";
 import { requireAuth } from "../middleware/authMiddleware.js";
@@ -17,6 +20,11 @@ const allow =
 
 router.post("/", requireAuth, allow("shopper", "seller"), createReport);
 router.get("/", requireAuth, allow("staff", "admin"), listReports);
-router.patch("/:id", requireAuth, allow("staff", "admin"), updateReportStatus);
+
+router.post("/:id/claim", requireAuth, allow("staff"), claimReport);
+router.post("/:id/final", requireAuth, allow("staff"), submitFinalReport);
+router.post("/:id/decision", requireAuth, allow("admin"), decideReport);
+
+router.patch("/:id", requireAuth, allow("admin"), updateReportStatus);
 
 export default router;

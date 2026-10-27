@@ -8,8 +8,8 @@ export default function ShopSettings({ user, onUpdate }) {
   const [shop, setShop] = useState({
     name: user.shopName || `${user.name}'s Shop`,
     email: user.shopEmail || user.email,
-    description:
-      user.shopDescription || "Quality products and everyday essentials.",
+    description: user.shopDescription || "NONE",
+    address: user.address || "",
   });
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -20,7 +20,12 @@ export default function ShopSettings({ user, onUpdate }) {
     getShopProfile()
       .then((p) => {
         if (!active) return;
-        setShop({ name: p.name, email: p.email, description: p.description });
+        setShop({
+          name: p.name,
+          email: p.email,
+          description: p.description,
+          address: p.address ?? "",
+        });
       })
       .catch(() => {
         /* keep the values from `user` if the request fails */
@@ -49,6 +54,7 @@ export default function ShopSettings({ user, onUpdate }) {
       errs.name = "Shop name must be 100 characters or less.";
     if (shop.description.trim().length > 500)
       errs.description = "Description must be 500 characters or less.";
+    if (!shop.address.trim()) errs.address = "Address is required.";
     return errs;
   };
 
@@ -63,11 +69,13 @@ export default function ShopSettings({ user, onUpdate }) {
       await updateShopProfile({
         name: shop.name.trim(),
         description: shop.description.trim(),
+        address: shop.address.trim(),
       });
       onUpdate?.({
         shopName: shop.name.trim(),
         shopEmail: shop.email,
         shopDescription: shop.description.trim(),
+        address: shop.address.trim(),
       });
       setError("");
       setSaved(true);
@@ -117,6 +125,21 @@ export default function ShopSettings({ user, onUpdate }) {
                 tabIndex={-1}
               />
               <small>Your registered email can't be changed.</small>
+            </label>
+            <label className="wide">
+              Address
+              <input
+                name="address"
+                value={shop.address}
+                onChange={update}
+                maxLength={255}
+                placeholder="Street, barangay, city, province"
+                autoComplete="street-address"
+                aria-invalid={!!fieldErrors.address}
+              />
+              {fieldErrors.address && (
+                <small className="field-error">{fieldErrors.address}</small>
+              )}
             </label>
             <label className="wide">
               Shop Description

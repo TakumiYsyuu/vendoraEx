@@ -1,0 +1,137 @@
+.rp-status,
+.rp-source,
+.rp-outcome {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Status */
+.rp-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+.rp-reviewed {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.rp-escalated {
+  background: #ffedd5;
+  color: #9a3412;
+}
+.rp-resolved {
+  background: #d1fae5;
+  color: #065f46;
+}
+.rp-dismissed {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+/* Source */
+.rp-source-form {
+  background: #f3f4f6;
+  color: #374151;
+}
+.rp-source-ai {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+/* Staff outcome */
+.rp-o-none {
+  background: #d1fae5;
+  color: #065f46;
+}
+.rp-o-warn {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.rp-o-suspend {
+  background: #fef3c7;
+  color: #92400e;
+}
+.rp-o-ban {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.rp-subject {
+  display: flex;
+  flex-direction: column;
+  max-width: 260px;
+}
+.rp-subject strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rp-subject small,
+.rp-role {
+  display: block;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.rp-badges {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.rp-block {
+  margin-top: 14px;
+}
+.rp-block > span {
+  display: block;
+  margin-bottom: 4px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.rp-block p {
+  margin: 0;
+  padding: 10px 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.rp-final {
+  padding: 10px 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+.rp-final p {
+  margin: 8px 0 6px;
+  padding: 0;
+  background: none;
+  border: 0;
+  max-height: none;
+}
+.rp-final small {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.rp-updated {
+  margin: 12px 0 0;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.rp-actions {
+  flex-wrap: wrap;
+}

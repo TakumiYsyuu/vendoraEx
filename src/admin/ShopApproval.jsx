@@ -312,10 +312,6 @@ export default function ShopApproval({
                 <StatusPill value={reviewing.status} />
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
-                <span>Business address</span>
-                <strong>{reviewing.address || "Not provided"}</strong>
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
                 <span>Shop description</span>
                 <strong style={{ fontWeight: 500 }}>
                   {reviewing.description || "Not provided"}

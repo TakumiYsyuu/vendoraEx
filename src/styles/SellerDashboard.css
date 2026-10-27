@@ -993,3 +993,23 @@
     font-size: 16px;
   }
 }
+
+.recent-orders-wrap {
+  overflow-x: auto;
+}
+
+.recent-orders th,
+.recent-orders td {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.recent-orders .status-cell {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.recent-orders .status-cell * {
+  white-space: nowrap;
+}

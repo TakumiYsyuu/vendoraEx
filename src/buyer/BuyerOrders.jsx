@@ -1,273 +1,337 @@
-import { useEffect, useState } from "react";
-import { Package, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { CheckCircle2, Eye, PackageSearch, Search, X } from "lucide-react";
 import Status from "../components/Status";
-import { money } from "../utils/helpers";
+import useOrders from "../logic/useOrders";
+import {
+  fetchMyOrders,
+  markOrderReceived,
+  money,
+  formatDate,
+} from "../logic/orders";
+import { initials } from "../utils/helpers";
+import "../styles/AdminModeration.css";
+import "../styles/staffManage.css";
+import "../styles/userManage.css";
 
-export default function BuyerOrders({ user }) {
-  const orderKey = `vendora-orders-${user.email}`;
-  const [orderList, setOrderList] = useState(() =>
-    JSON.parse(localStorage.getItem(orderKey) || "[]"),
-  );
-  useEffect(
-    () => localStorage.setItem(orderKey, JSON.stringify(orderList)),
-    [orderKey, orderList],
-  );
-  useEffect(() => {
-    const refresh = (event) => {
-      if (event.key === orderKey && event.newValue)
-        setOrderList(JSON.parse(event.newValue));
-    };
-    const refreshVisible = () =>
-      setOrderList(JSON.parse(localStorage.getItem(orderKey) || "[]"));
-    window.addEventListener("storage", refresh);
-    document.addEventListener("visibilitychange", refreshVisible);
-    return () => {
-      window.removeEventListener("storage", refresh);
-      document.removeEventListener("visibilitychange", refreshVisible);
-    };
-  }, [orderKey]);
-  const [filter, setFilter] = useState("All");
-  const [selectedOrder, setSelectedOrder] = useState(null);
+const TABS = [
+  "All",
+  "Pending",
+  "Processing",
+  "In Transit",
+  "Out for Delivery",
+  "Completed",
+  "Cancelled",
+];
 
-  // Order changes stay local to this buyer and are persisted by the effect above.
-  const cancelOrder = (id) =>
-    setOrderList((list) => list.filter((order) => order.id !== id));
-  const requestReturn = (id) =>
-    setOrderList((list) =>
-      list.map((order) =>
-        order.id === id ? { ...order, status: "Return Requested" } : order,
-      ),
-    );
-
-  // Reviews use the existing review sheet, so React owns the button state.
-  const rateDeliveredOrder = (order) => {
-    const product = order.products?.[0];
-    if (product)
-      window.dispatchEvent(new CustomEvent("open-review", { detail: product }));
-  };
-  const visibleOrders = orderList.filter(
-    (order) => filter === "All" || order.status === filter,
-  );
-  const getOrderCount = (status) =>
-    status === "All" ?
-      orderList.length
-    : orderList.filter((order) => order.status === status).length;
-
-  const renderOrderAction = (order) => {
-    if (["Processing", "Pending"].includes(order.status))
-      return (
-        <button className="text-btn" onClick={() => cancelOrder(order.id)}>
-          Cancel Order
-        </button>
-      );
-    if (order.status === "Delivered")
-      return (
-        <button className="text-btn" onClick={() => requestReturn(order.id)}>
-          Refund / Return
-        </button>
-      );
-    return (
-      <span style={{ fontSize: 11, color: "var(--muted)" }}>No actions</span>
-    );
-  };
+function EmptyState({ icon: Icon, title, description }) {
   return (
-    <div>
-      <div className="page-title">
+    <div className="empty admin-empty">
+      <Icon size={32} />
+      <h3>{title}</h3>
+      <p>{description}</p>
+    </div>
+  );
+}
+
+export default function BuyerOrders() {
+  const { orders, loading, error, busyId, run } = useOrders(fetchMyOrders);
+  const [tab, setTab] = useState("All");
+  const [query, setQuery] = useState("");
+  const [viewing, setViewing] = useState(null);
+
+  const counts = useMemo(() => {
+    const result = { All: orders.length };
+    TABS.slice(1).forEach((t) => {
+      result[t] = orders.filter((o) => o.status === t).length;
+    });
+    return result;
+  }, [orders]);
+
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return orders.filter((o) => {
+      const matchesTab = tab === "All" || o.status === tab;
+      const matchesSearch =
+        !q ||
+        o.code.toLowerCase().includes(q) ||
+        o.shopName?.toLowerCase().includes(q) ||
+        o.items.some((i) => i.name.toLowerCase().includes(q));
+      return matchesTab && matchesSearch;
+    });
+  }, [orders, tab, query]);
+
+  const hasActiveFilters = tab !== "All" || query.trim() !== "";
+  const clearFilters = () => {
+    setTab("All");
+    setQuery("");
+  };
+
+  const receive = async (order) => {
+    const ok = await run(order.id, () => markOrderReceived(order.id));
+    if (ok && viewing?.id === order.id) setViewing(null);
+  };
+
+  return (
+    <div className="admin-page">
+      <div className="page-title admin-page-title">
         <div>
           <h1>My Orders</h1>
-          <p>Track and manage your purchases</p>
+          <p>Track your orders and confirm them once they arrive.</p>
         </div>
       </div>
-      <div className="tabs">
-        {[
-          "All",
-          "Pending",
-          "Processing",
-          "Shipped",
-          "Delivered",
-          "Cancelled",
-        ].map((status) => (
-          <button
-            key={status}
-            className={filter === status ? "selected" : ""}
-            onClick={() => setFilter(status)}
-          >
-            {status} ({getOrderCount(status)})
-          </button>
-        ))}
+
+      <div className="st-toolbar">
+        <div className="st-tabs" role="tablist" aria-label="Filter by status">
+          {TABS.map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={tab === t}
+              className={`st-tab ${tab === t ? "on" : ""}`}
+              onClick={() => setTab(t)}
+            >
+              {t}
+              <span className="st-count">{counts[t]}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="um-filters">
+          <label className="st-search">
+            <Search size={15} aria-hidden="true" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search order, shop or item"
+              aria-label="Search orders"
+            />
+            {query && (
+              <button
+                type="button"
+                className="st-search-clear"
+                aria-label="Clear search"
+                onClick={() => setQuery("")}
+              >
+                <X size={13} />
+              </button>
+            )}
+          </label>
+
+          {hasActiveFilters && (
+            <button type="button" className="um-reset" onClick={clearFilters}>
+              <X size={13} /> Reset
+            </button>
+          )}
+        </div>
       </div>
-      <div className="table-card">
-        {visibleOrders.length ?
-          <table>
-            <thead>
-              <tr>
-                <th>Order #</th>
-                <th>Date</th>
-                <th>Total</th>
-                <th>Status</th>
-                <th>View</th>
-                <th>Rating</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleOrders.map((o) => (
-                <tr key={o.id}>
-                  <td>
-                    <b>{o.id}</b>
-                  </td>
-                  <td>{o.date}</td>
-                  <td>{money(o.total)}</td>
-                  <td>
-                    <Status>{o.status}</Status>
-                  </td>
-                  <td>
-                    <button
-                      className="text-btn"
-                      onClick={() => setSelectedOrder(o)}
-                    >
-                      View
-                    </button>
-                  </td>
-                  <td>
-                    {o.status === "Delivered" ?
-                      <button
-                        className="outline small"
-                        onClick={() => rateDeliveredOrder(o)}
-                      >
-                        ☆ Rating
-                      </button>
-                    : <span style={{ fontSize: 11, color: "var(--muted)" }}>
-                        Available after delivery
-                      </span>
-                    }
-                  </td>
-                  <td>{renderOrderAction(o)}</td>
+
+      {error && (
+        <p className="admin-form-error" role="alert">
+          {error}
+        </p>
+      )}
+
+      <div className="table-card st-card">
+        {loading ?
+          <EmptyState
+            icon={PackageSearch}
+            title="Loading orders"
+            description="Please wait a moment."
+          />
+        : orders.length === 0 ?
+          <EmptyState
+            icon={PackageSearch}
+            title="No orders yet"
+            description="Orders you place will appear here."
+          />
+        : shown.length === 0 ?
+          <EmptyState
+            icon={Search}
+            title="No matching orders"
+            description="Try a different search or another status."
+          />
+        : <div className="st-scroll">
+            <table className="st-table">
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <th>Shop</th>
+                  <th>Items</th>
+                  <th>Total</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        : <div className="empty">
-            <Package size={32} />
-            <h3>No {filter.toLowerCase()} orders</h3>
+              </thead>
+              <tbody>
+                {shown.map((order) => (
+                  <tr key={order.id}>
+                    <td>
+                      <strong>{order.code}</strong>
+                    </td>
+                    <td>
+                      <div className="st-person">
+                        <span className="st-avatar" aria-hidden="true">
+                          {initials(order.shopName || "Shop")}
+                        </span>
+                        <strong>{order.shopName}</strong>
+                      </div>
+                    </td>
+                    <td className="st-muted">
+                      {order.items
+                        .map((i) => `${i.name} ×${i.quantity}`)
+                        .join(", ")}
+                    </td>
+                    <td>{money(order.total)}</td>
+                    <td className="st-muted">{formatDate(order.createdAt)}</td>
+                    <td
+                      title={
+                        order.status === "Cancelled" && order.cancelReason ?
+                          `Reason: ${order.cancelReason}`
+                        : undefined
+                      }
+                    >
+                      <Status>{order.status}</Status>
+                    </td>
+                    <td>
+                      <div className="st-actions">
+                        <button
+                          type="button"
+                          className="st-btn"
+                          onClick={() => setViewing(order)}
+                        >
+                          <Eye size={13} /> View
+                        </button>
+                        {order.status === "Out for Delivery" && (
+                          <button
+                            type="button"
+                            className="st-btn st-btn-good"
+                            disabled={busyId === order.id}
+                            onClick={() => receive(order)}
+                          >
+                            <CheckCircle2 size={13} />{" "}
+                            {busyId === order.id ?
+                              "Saving..."
+                            : "Order Received"}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         }
       </div>
-      {selectedOrder && (
+
+      {viewing && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 40,
-            display: "grid",
-            placeItems: "center",
-            background: "rgba(7,26,46,.45)",
-            padding: 20,
-          }}
+          className="admin-dialog-backdrop st-backdrop"
+          role="presentation"
+          onMouseDown={() => setViewing(null)}
         >
-          <div
-            className="form-card"
+          <section
+            className="admin-user-dialog st-dialog admin-order-dialog"
             role="dialog"
             aria-modal="true"
-            style={{
-              width: "min(520px,100%)",
-              maxHeight: "85vh",
-              overflowY: "auto",
-              margin: 0,
-            }}
+            aria-labelledby="buyer-order-dialog-title"
+            onMouseDown={(event) => event.stopPropagation()}
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <h2>Order {selectedOrder.id}</h2>
+            <div className="admin-dialog-heading">
+              <div>
+                <h2 id="buyer-order-dialog-title">Order {viewing.code}</h2>
+                <p>Review your order status and purchased items.</p>
+              </div>
               <button
-                className="icon-only"
-                onClick={() => setSelectedOrder(null)}
+                className="admin-dialog-close"
+                aria-label="Close"
+                onClick={() => setViewing(null)}
               >
-                <X size={17} />
+                ×
               </button>
             </div>
-            <div className="summary-product">
-              <span>Status</span>
-              <b>
-                <Status>{selectedOrder.status}</Status>
-              </b>
-            </div>
-            <div className="summary-product">
-              <span>Order date</span>
-              <b>{selectedOrder.date}</b>
-            </div>
-            <div className="summary-product">
-              <span>Expected arrival</span>
-              <b>{selectedOrder.expectedDate || "3–5 days after shipment"}</b>
-            </div>
-            <h3 style={{ fontSize: 13, marginTop: 18 }}>Products purchased</h3>
-            {(selectedOrder.products || []).map((product, index) => (
-              <div
-                key={`${product.name}-${index}`}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "12px 0",
-                  borderBottom: "1px solid var(--line)",
-                }}
-              >
-                {product.image ?
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    style={{
-                      width: 54,
-                      height: 54,
-                      objectFit: "cover",
-                      borderRadius: 6,
-                    }}
-                  />
-                : <div className="avatar">📦</div>}
-                <div style={{ flex: 1 }}>
-                  <strong style={{ display: "block", fontSize: 12 }}>
-                    {product.name}
-                  </strong>
-                  <small
-                    style={{
-                      display: "block",
-                      marginTop: 4,
-                      color: "var(--muted)",
-                      fontSize: 11,
-                    }}
-                  >
-                    Shop: {product.shop}
-                  </small>
-                  <small
-                    style={{
-                      display: "block",
-                      marginTop: 3,
-                      color: "var(--muted)",
-                      fontSize: 11,
-                    }}
-                  >
-                    Qty: {product.quantity} · {money(product.price)} each
-                  </small>
+
+            {viewing.status === "Cancelled" && viewing.cancelReason && (
+              <div className="um-reason-box">
+                <div>
+                  <span>Reason from the seller</span>
+                  <strong>{viewing.cancelReason}</strong>
                 </div>
-                <b>{money(product.price * product.quantity)}</b>
               </div>
-            ))}
-            <div className="total" style={{ marginTop: 16 }}>
-              <span>Total</span>
-              <b>{money(selectedOrder.total)}</b>
+            )}
+
+            <div className="admin-order-summary">
+              <div>
+                <span>Shop</span>
+                <strong>{viewing.shopName}</strong>
+              </div>
+              <div>
+                <span>Order date</span>
+                <strong>{formatDate(viewing.createdAt)}</strong>
+              </div>
+              <div>
+                <span>Total</span>
+                <strong>{money(viewing.total)}</strong>
+              </div>
+              <div>
+                <span>Status</span>
+                <Status>{viewing.status}</Status>
+              </div>
             </div>
-            <button
-              className="primary full"
-              onClick={() => setSelectedOrder(null)}
-            >
-              Close
-            </button>
-          </div>
+
+            <div className="admin-order-items">
+              <h3>Deliver to</h3>
+              <div>
+                <span>Name</span>
+                <strong>{viewing.shipName || viewing.buyerName}</strong>
+              </div>
+              <div>
+                <span>Phone</span>
+                <strong>
+                  {viewing.shipPhone || viewing.buyerPhone || "—"}
+                </strong>
+              </div>
+              <div>
+                <span>Address</span>
+                <strong>{viewing.shipAddress || "No address provided"}</strong>
+              </div>
+            </div>
+
+            <div className="admin-order-items">
+              <h3>Items</h3>
+              {viewing.items.map((item) => (
+                <div key={item.id}>
+                  <span>
+                    {item.name} × {item.quantity}
+                  </span>
+                  <strong>{money(item.price * item.quantity)}</strong>
+                </div>
+              ))}
+              <div>
+                <span>Shipping</span>
+                <strong>{money(viewing.shippingFee)}</strong>
+              </div>
+            </div>
+
+            <div className="admin-dialog-actions">
+              <button type="button" onClick={() => setViewing(null)}>
+                Close
+              </button>
+              {viewing.status === "Out for Delivery" && (
+                <button
+                  className="primary"
+                  type="button"
+                  disabled={busyId === viewing.id}
+                  onClick={() => receive(viewing)}
+                >
+                  {busyId === viewing.id ? "Saving..." : "Order Received"}
+                </button>
+              )}
+            </div>
+          </section>
         </div>
       )}
     </div>

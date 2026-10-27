@@ -1,5 +1,3 @@
-// Demo seed catalogue used only to initialize product selection in the front end.
-// Replace this static data with the product list returned by the backend API.
 export const products = [
   {
     id: 1,
@@ -115,5 +113,4 @@ export const products = [
   },
 ];
 
-// Kept as a compatible empty fallback until seller orders come from the backend.
 export const orders = [];

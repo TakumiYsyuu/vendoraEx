@@ -23,3 +23,23 @@
 .status.restricted {
   color: #cf5260;
 }
+
+.status.pending {
+  color: #92400e;
+}
+.status.processing {
+  color: #1e40af;
+}
+.status.in-transit {
+  color: #5b21b6;
+}
+.status.out-for-delivery {
+  color: #9a3412;
+  text-size-adjust: 9;
+}
+.status.completed {
+  color: #166534;
+}
+.status.cancelled {
+  color: #991b1b;
+}

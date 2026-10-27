@@ -25,7 +25,7 @@ function calcAge(iso) {
 export const getShop = async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT fullname, email, shop_name, shop_description, verification_status
+      `SELECT fullname, email, address, shop_name, shop_description, verification_status
        FROM users WHERE id = ?`,
       [req.user.id],
     );
@@ -40,6 +40,7 @@ export const getShop = async (req, res) => {
       shop: {
         name: u.shop_name || `${u.fullname}'s Shop`,
         email: u.email,
+        address: u.address || "",
         description:
           u.shop_description || "Quality products and everyday essentials.",
         verification_status: u.verification_status,
@@ -54,12 +55,16 @@ export const getShop = async (req, res) => {
 export const updateShop = async (req, res) => {
   const name = (req.body.name || "").trim();
   const description = (req.body.description || "").trim();
+  const address = (req.body.address || "").trim();
 
   const errors = {};
   if (name.length < 2 || name.length > 100)
     errors.name = "Shop name must be 2 to 100 characters.";
   if (description.length > 500)
     errors.description = "Description must be 500 characters or less.";
+  if (!address) errors.address = "Address is required.";
+  else if (address.length > 90)
+    errors.address = "Address must be 255 characters or less.";
   if (Object.keys(errors).length) {
     return res
       .status(400)
@@ -68,8 +73,8 @@ export const updateShop = async (req, res) => {
 
   try {
     await db.query(
-      "UPDATE users SET shop_name = ?, shop_description = ? WHERE id = ?",
-      [name, description, req.user.id],
+      "UPDATE users SET shop_name = ?, shop_description = ?, address = ? WHERE id = ?",
+      [name, description, address, req.user.id],
     );
     res.json({ success: true, message: "Shop updated." });
   } catch (err) {

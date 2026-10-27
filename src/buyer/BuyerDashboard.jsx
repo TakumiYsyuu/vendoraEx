@@ -513,9 +513,12 @@ function AccountSettings({ user, onUpdate }) {
     messages: false,
   });
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const updateProfile = (e) => {
     setProfile({ ...profile, [e.target.name]: e.target.value });
     setSaved(false);
+    setSaveError("");
   };
   const toggleNotification = (key) => {
     setNotifications({ ...notifications, [key]: !notifications[key] });
@@ -531,10 +534,24 @@ function AccountSettings({ user, onUpdate }) {
         </div>
       </div>
       <form
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          onUpdate(profile);
-          setSaved(true);
+          setSaving(true);
+          setSaveError("");
+          try {
+            await onUpdate({
+              ...profile,
+              name: profile.name.trim(),
+              phone: profile.phone.trim(),
+              address: profile.address.trim(),
+            });
+            setSaved(true);
+          } catch (err) {
+            setSaveError(err.message);
+            setSaved(false);
+          } finally {
+            setSaving(false);
+          }
         }}
       >
         <div className="form-card">
@@ -554,7 +571,8 @@ function AccountSettings({ user, onUpdate }) {
                 type="email"
                 name="email"
                 value={profile.email}
-                onChange={updateProfile}
+                readOnly
+                tabIndex={-1}
               />
             </label>
             <label>
@@ -571,7 +589,9 @@ function AccountSettings({ user, onUpdate }) {
                 name="address"
                 value={profile.address}
                 onChange={updateProfile}
-                placeholder="Enter your address"
+                maxLength={255}
+                placeholder="House no., street, barangay, city, province"
+                autoComplete="street-address"
               />
             </label>
             <label>
@@ -648,9 +668,12 @@ function AccountSettings({ user, onUpdate }) {
           ))}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <button className="primary" type="submit">
-            Save Changes
+          <button className="primary" type="submit" disabled={saving}>
+            {saving ? "Saving…" : "Save Changes"}
           </button>
+          {saveError && (
+            <span style={{ color: "#dc2626", fontSize: 12 }}>{saveError}</span>
+          )}
           {saved && (
             <span
               style={{

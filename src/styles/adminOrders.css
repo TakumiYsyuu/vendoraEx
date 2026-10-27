@@ -1,0 +1,54 @@
+.ao-page .st-toolbar {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.ao-page .st-tabs {
+  flex-wrap: wrap;
+  max-width: 100%;
+  height: auto;
+}
+
+.ao-page .st-tab {
+  white-space: nowrap;
+}
+
+.ao-page .um-filters {
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.ao-page .ao-nowrap,
+.ao-page .ao-nowrap * {
+  white-space: nowrap;
+}
+
+.ao-page .ao-nowrap {
+  display: inline-flex;
+  align-items: center;
+  max-width: none;
+}
+
+.ao-page .st-scroll {
+  overflow-x: auto;
+}
+
+.ao-page .st-table td,
+.ao-page .st-table th {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.ao-page .admin-order-summary > div {
+  min-width: 0;
+}
+
+.ao-page .admin-order-summary strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.ao-page .admin-order-items {
+  margin-top: 12px;
+}

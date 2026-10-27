@@ -1,4 +1,5 @@
 const VITE_URL = import.meta.env.VITE_URL || "http://localhost:5000/api";
+
 const STORAGE_KEY = "vendora_user";
 const TOKEN_KEY = "vendora_token";
 
@@ -6,6 +7,7 @@ import { getDeviceId } from "./deviceId";
 
 function normalizeUser(rawUser) {
   if (!rawUser) return rawUser;
+
   return {
     ...rawUser,
     name: rawUser.name || rawUser.fullname || rawUser.full_name || "",
@@ -18,7 +20,11 @@ export async function loginAccount({ email, password }) {
     const response = await fetch(`${VITE_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, deviceId: getDeviceId() }),
+      body: JSON.stringify({
+        email,
+        password,
+        deviceId: getDeviceId(),
+      }),
     });
 
     const data = await response.json();
@@ -34,7 +40,7 @@ export async function loginAccount({ email, password }) {
       return { otpRequired: true, email: data.email };
     }
 
-    localStorage.setItem("vendora_token", data.token);
+    localStorage.setItem(TOKEN_KEY, data.token);
     return { account: normalizeUser(data.user) };
   } catch (err) {
     console.error("Login request failed:", err);
@@ -47,7 +53,11 @@ export async function verifyLoginOtp(email, code) {
     const response = await fetch(`${VITE_URL}/auth/login/verify-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, code, deviceId: getDeviceId() }),
+      body: JSON.stringify({
+        email,
+        code,
+        deviceId: getDeviceId(),
+      }),
     });
 
     const data = await response.json();
@@ -56,12 +66,69 @@ export async function verifyLoginOtp(email, code) {
       return { error: data.message || "Invalid or expired code." };
     }
 
-    localStorage.setItem("vendora_token", data.token);
+    localStorage.setItem(TOKEN_KEY, data.token);
     return { account: normalizeUser(data.user) };
   } catch (err) {
     console.error("Verify login OTP failed:", err);
     return { error: "Could not reach the server. Please try again." };
   }
+}
+
+export async function fetchProfile() {
+  const token = localStorage.getItem(TOKEN_KEY);
+
+  if (!token) {
+    throw new Error("Please log in to view your profile.");
+  }
+
+  const response = await fetch(`${VITE_URL}/auth/profile`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok || !data?.profile) {
+    throw new Error(data?.message || "Could not load profile.");
+  }
+
+  return normalizeUser(data.profile);
+}
+
+export async function saveProfile({ name, phone, address }) {
+  const token = localStorage.getItem(TOKEN_KEY);
+
+  if (!token) {
+    throw new Error("Please log in to save your profile.");
+  }
+
+  let response;
+
+  try {
+    response = await fetch(`${VITE_URL}/auth/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ name, phone, address }),
+    });
+  } catch (err) {
+    throw new Error("Could not reach the server. Please try again.");
+  }
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(
+      (data?.errors && Object.values(data.errors)[0]) ||
+        data?.message ||
+        "Could not save your profile.",
+    );
+  }
+
+  return normalizeUser(data.profile);
 }
 
 export async function registerAccount({
@@ -106,8 +173,13 @@ export async function requestPasswordReset(email) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
     });
+
     const data = await response.json();
-    if (!response.ok) return { error: data.message || "Failed to send code." };
+
+    if (!response.ok) {
+      return { error: data.message || "Failed to send code." };
+    }
+
     return { success: true };
   } catch (err) {
     console.error("Request reset failed:", err);
@@ -122,9 +194,13 @@ export async function verifyResetCode(email, code) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, code }),
     });
+
     const data = await response.json();
-    if (!response.ok)
+
+    if (!response.ok) {
       return { error: data.message || "Invalid or expired code." };
+    }
+
     return { success: true };
   } catch (err) {
     console.error("Verify code failed:", err);
@@ -139,9 +215,13 @@ export async function confirmPasswordReset(email, code, newPassword) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, code, newPassword }),
     });
+
     const data = await response.json();
-    if (!response.ok)
+
+    if (!response.ok) {
       return { error: data.message || "Failed to reset password." };
+    }
+
     return { success: true };
   } catch (err) {
     console.error("Reset password failed:", err);
@@ -149,7 +229,7 @@ export async function confirmPasswordReset(email, code, newPassword) {
   }
 }
 
-// --- Session persistence, matching App.jsx's exact call signatures ---
+// Session persistence
 
 export function loadStoredUser() {
   try {
@@ -169,16 +249,19 @@ export function persistLogin(nextUser, remember) {
       console.error("Failed to persist login:", err);
     }
   }
+
   return nextUser;
 }
 
 export function persistUserUpdate(user, nextUser) {
   const updated = { ...user, ...nextUser };
+
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   } catch (err) {
     console.error("Failed to persist user update:", err);
   }
+
   return updated;
 }
 

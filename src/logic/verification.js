@@ -88,8 +88,8 @@ export const submitVerification = (form) =>
 
 export const getShopProfile = async () => (await request("/shop")).shop;
 
-export const updateShopProfile = ({ name, description }) =>
+export const updateShopProfile = ({ name, description, address }) =>
   request("/shop", {
     method: "PUT",
-    body: JSON.stringify({ name, description }),
+    body: JSON.stringify({ name, description, address }),
   });
