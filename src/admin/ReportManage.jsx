@@ -3,7 +3,7 @@ import { Bot, Eye, FileText, Flag, Search, X } from "lucide-react";
 import { initials } from "../utils/helpers";
 import "../styles/staffManage.css";
 import "../styles/userManage.css";
-import "../styles/reportManage.css";
+import "../styles/Reportmanage.css";
 
 const STATUS_TABS = [
   ["all", "All"],

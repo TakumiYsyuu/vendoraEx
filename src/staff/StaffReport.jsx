@@ -14,7 +14,7 @@ import { initials } from "../utils/helpers";
 import { fetchReports, claimReport, submitFinalReport } from "../logic/admin";
 import "../styles/staffManage.css";
 import "../styles/userManage.css";
-import "../styles/ReportManage.css";
+import "../styles/Reportmanage.css";
 import "../styles/StaffReport.css";
 
 /* ---------- Labels and helpers ---------- */
